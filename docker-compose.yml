@@ -1,0 +1,11 @@
+services:
+  agent-board:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./agent-board.yaml:/app/agent-board.yaml:ro
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

@@ -1,0 +1,26 @@
+{
+  "name": "agent-board",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter @agent-board/server dev",
+    "dev:web": "pnpm --filter @agent-board/web dev",
+    "dev": "pnpm run --parallel dev:server dev:web",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.6"
+  }
+}
