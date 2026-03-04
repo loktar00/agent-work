@@ -32,7 +32,7 @@ export function AgentList({ agents, selectedId, onSelect, onCreateClick }: Agent
       {agents.length === 0 ? (
         <EmptyState
           title="No agents"
-          description="Create your first agent to get started."
+          description="Create your first agent or browse templates."
           icon={<IconRobot size={24} />}
         />
       ) : (

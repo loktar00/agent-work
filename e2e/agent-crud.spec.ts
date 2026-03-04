@@ -26,6 +26,9 @@ test('create an agent with name and role via UI', async ({ page }) => {
   // Click "New Agent" button
   await page.getByTestId('new-agent-btn').click();
 
+  // Switch to Custom tab
+  await page.getByTestId('custom-tab').click();
+
   // Fill in the agent details
   await page.getByTestId('agent-name-input').fill(agentName);
   await page.getByTestId('agent-role-input').fill('developer');
