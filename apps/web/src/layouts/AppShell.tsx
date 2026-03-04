@@ -38,6 +38,12 @@ export function AppShellLayout() {
   ];
 
   return (
+    <>
+    {/* CRT effects */}
+    <div className="scanlines" />
+    <div className="glow-blob glow-blob-cyan" />
+    <div className="glow-blob glow-blob-magenta" />
+
     <AppShell
       header={{ height: 60 }}
       navbar={{
@@ -46,8 +52,9 @@ export function AppShellLayout() {
         collapsed: { mobile: !sidebarOpen, desktop: !sidebarOpen },
       }}
       padding="md"
+      style={{ position: 'relative', zIndex: 1 }}
     >
-      <AppShell.Header style={{ backgroundColor: '#050508' }} data-testid="app-header">
+      <AppShell.Header style={{ backgroundColor: 'rgba(5, 5, 8, 0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1a1a2e' }} data-testid="app-header">
         <Group h="100%" px="md" justify="space-between">
           <Group>
             <Burger
@@ -56,13 +63,15 @@ export function AppShellLayout() {
               size="sm"
             />
             <Text
+              className="glitch-text"
+              data-text="AWALL"
               size="lg"
-              fw={700}
+              fw={900}
               variant="gradient"
               gradient={{ from: '#00fff2', to: '#ff00aa', deg: 90 }}
-              style={{ fontFamily: 'Orbitron, sans-serif' }}
+              style={{ fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.15em' }}
             >
-              NEONSYNC
+              AWALL
             </Text>
           </Group>
           <Group gap="sm">
@@ -128,5 +137,6 @@ export function AppShellLayout() {
       <WelcomeWizard />
       <GuidedTour />
     </AppShell>
+    </>
   );
 }

@@ -1,42 +1,57 @@
-import Joyride, { CallBackProps, STATUS, Step, TooltipRenderProps } from 'react-joyride';
+import Joyride, { CallBackProps, EVENTS, STATUS, Step, TooltipRenderProps } from 'react-joyride';
 import { Box, Button, Group, Text, Title } from '@mantine/core';
+import { useNavigate } from 'react-router-dom';
 import { useTutorialStore } from '../../stores/tutorialStore';
 
-const TOUR_STEPS: Step[] = [
-  {
-    target: '[data-testid="nav-boards"]',
-    content: 'Use the sidebar to navigate between boards, agents, and activity feeds.',
-    title: 'Navigation',
-    disableBeacon: true,
-  },
-  {
-    target: '[data-testid="app-header"]',
-    content: 'This is your command center header. Access core controls and see your connection status.',
-    title: 'Command Center',
-  },
-  {
-    target: '[data-testid="add-column-btn"]',
-    content: 'Create columns to organize your workflow into stages like Backlog, In Progress, and Done.',
-    title: 'Add Columns',
-    isFixed: true,
-  },
-  {
-    target: '[data-testid="add-card-btn"]',
-    content: 'Add cards to track tasks and work items. Assign them to agents for automated execution.',
-    title: 'Add Cards',
-    isFixed: true,
-  },
-  {
-    target: '[data-testid="nav-agents"]',
-    content: 'Manage your AI agents here. Configure skills, view run history, and monitor agent activity.',
-    title: 'Agent Management',
-  },
-  {
-    target: '[data-testid="connection-indicator"]',
-    content: 'Shows real-time connection status. Green means you are connected and receiving live updates.',
-    title: 'Connection Status',
-  },
-];
+interface TourStepDef extends Step {
+  /** Route to navigate to before showing this step */
+  navigateTo?: string | 'board';
+}
+
+function buildSteps(welcomeBoardId: string | null): TourStepDef[] {
+  const boardPath = welcomeBoardId ? `/boards/${welcomeBoardId}` : null;
+
+  return [
+    {
+      target: '[data-testid="nav-boards"]',
+      content: 'Use the sidebar to navigate between boards, agents, and activity feeds.',
+      title: 'Navigation',
+      disableBeacon: true,
+      navigateTo: '/boards',
+    },
+    {
+      target: '[data-testid="app-header"]',
+      content: 'This is your command center header. Access core controls and see your connection status.',
+      title: 'Command Center',
+    },
+    ...(boardPath
+      ? [
+          {
+            target: '[data-testid="add-column-btn"]',
+            content: 'Create columns to organize your workflow into stages like Backlog, In Progress, and Done.',
+            title: 'Add Columns',
+            navigateTo: boardPath,
+          } as TourStepDef,
+          {
+            target: '[data-testid^="add-card-"]',
+            content: 'Add cards to track tasks and work items. Assign them to agents for automated execution.',
+            title: 'Add Cards',
+          } as TourStepDef,
+        ]
+      : []),
+    {
+      target: '[data-testid="nav-agents"]',
+      content: 'Manage your AI agents here. Configure skills, view run history, and monitor agent activity.',
+      title: 'Agent Management',
+      navigateTo: '/boards',
+    },
+    {
+      target: '[data-testid="connection-indicator"]',
+      content: 'Shows real-time connection status. Green means you are connected and receiving live updates.',
+      title: 'Connection Status',
+    },
+  ];
+}
 
 function CustomTooltip({
   continuous,
@@ -120,12 +135,45 @@ export function GuidedTour() {
   const currentTourStep = useTutorialStore((s) => s.currentTourStep);
   const setTourStep = useTutorialStore((s) => s.setTourStep);
   const stopTour = useTutorialStore((s) => s.stopTour);
+  const welcomeBoardId = useTutorialStore((s) => s.welcomeBoardId);
+  const navigate = useNavigate();
+
+  const steps = buildSteps(welcomeBoardId);
 
   const handleCallback = (data: CallBackProps) => {
-    const { status, index, action } = data;
+    const { status, type, index } = data;
 
-    if (action === 'update') {
-      setTourStep(index);
+    if (type === 'step:after') {
+      const nextIndex = index + (data.action === 'prev' ? -1 : 1);
+
+      // Navigate to the target page before showing the next step
+      if (nextIndex >= 0 && nextIndex < steps.length) {
+        const nextStep = steps[nextIndex] as TourStepDef;
+        if (nextStep.navigateTo) {
+          navigate(nextStep.navigateTo);
+          // Small delay to let the page render before Joyride looks for the target
+          setTimeout(() => setTourStep(nextIndex), 300);
+          return;
+        }
+      }
+
+      setTourStep(nextIndex);
+    }
+
+    // Skip steps whose target element doesn't exist on the current page
+    if (type === EVENTS.TARGET_NOT_FOUND) {
+      const nextIndex = index + 1;
+      if (nextIndex < steps.length) {
+        const nextStep = steps[nextIndex] as TourStepDef;
+        if (nextStep.navigateTo) {
+          navigate(nextStep.navigateTo);
+          setTimeout(() => setTourStep(nextIndex), 300);
+          return;
+        }
+        setTourStep(nextIndex);
+      } else {
+        stopTour();
+      }
     }
 
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
@@ -133,9 +181,17 @@ export function GuidedTour() {
     }
   };
 
+  // Navigate to the first step's page when tour starts
+  if (isTourActive && currentTourStep === 0 && steps[0]?.navigateTo) {
+    const target = steps[0].navigateTo;
+    if (!window.location.pathname.startsWith(target)) {
+      navigate(target);
+    }
+  }
+
   return (
     <Joyride
-      steps={TOUR_STEPS}
+      steps={steps}
       run={isTourActive}
       stepIndex={currentTourStep}
       continuous

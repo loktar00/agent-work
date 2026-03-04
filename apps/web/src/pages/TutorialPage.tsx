@@ -132,7 +132,7 @@ function TutorialPage() {
             Tutorial
           </Title>
           <Text c="dimmed" size="sm" mt={4}>
-            Complete each step to learn the fundamentals of NEONSYNC.
+            Complete each step to learn the fundamentals of AWALL.
           </Text>
         </div>
 
@@ -238,7 +238,7 @@ function TutorialPage() {
                     Tutorial Complete!
                   </Title>
                   <Text c="dimmed" maw={400}>
-                    You have mastered the fundamentals of NEONSYNC.
+                    You have mastered the fundamentals of AWALL.
                     Now go build something amazing with your AI-powered board.
                   </Text>
                   <Button

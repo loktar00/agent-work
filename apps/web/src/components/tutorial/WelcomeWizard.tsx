@@ -157,7 +157,7 @@ export function WelcomeWizard() {
                 fontSize: '2.2rem',
               }}
             >
-              NEONSYNC
+              AWALL
             </Title>
             <Text c="dimmed" ta="center" size="lg" maw={400}>
               Your AI-powered project board. Manage tasks, orchestrate agents,

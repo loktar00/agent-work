@@ -5,8 +5,8 @@ test.describe('Welcome Wizard', () => {
     // Do NOT set localStorage - simulate first visit
     await page.goto('/boards');
 
-    // Wizard modal should be visible with the NEONSYNC title
-    await expect(page.getByText('NEONSYNC').first()).toBeVisible();
+    // Wizard modal should be visible with the AWALL title
+    await expect(page.getByText('AWALL').first()).toBeVisible();
     await expect(page.getByText('Get Started')).toBeVisible();
   });
 
@@ -129,7 +129,7 @@ test.describe('Tutorial Page', () => {
     // Page title
     await expect(page.getByRole('heading', { name: 'Tutorial' })).toBeVisible();
     await expect(
-      page.getByText('Complete each step to learn the fundamentals of NEONSYNC.'),
+      page.getByText('Complete each step to learn the fundamentals of AWALL.'),
     ).toBeVisible();
 
     // Progress indicator
