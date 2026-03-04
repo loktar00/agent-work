@@ -24,7 +24,7 @@ export function AgentList({ agents, selectedId, onSelect, onCreateClick }: Agent
         <Text size="lg" fw={600}>
           Agents
         </Text>
-        <Button size="xs" leftSection={<IconPlus size={14} />} onClick={onCreateClick}>
+        <Button size="xs" leftSection={<IconPlus size={14} />} onClick={onCreateClick} data-testid="new-agent-btn">
           New Agent
         </Button>
       </Group>

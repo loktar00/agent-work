@@ -4,6 +4,16 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Column, Card as CardType, Subtask } from '@agent-board/shared';
 import { KanbanCard } from './KanbanCard';
 import { AgentBadge } from '../AgentBadge';
+import classes from './KanbanColumn.module.css';
+
+const COLUMN_COLORS = [
+  '#00fff2',
+  '#ff00aa',
+  '#e0ff00',
+  '#00a8ff',
+  '#ff2d78',
+  '#aa00ff',
+];
 
 interface KanbanColumnProps {
   column: Column;
@@ -11,6 +21,7 @@ interface KanbanColumnProps {
   agentNames: Record<string, string>;
   subtasksByCard?: Record<string, Subtask[]>;
   onCardClick?: (cardId: string) => void;
+  onAddCard?: (columnId: string) => void;
 }
 
 export function KanbanColumn({
@@ -19,6 +30,7 @@ export function KanbanColumn({
   agentNames,
   subtasksByCard,
   onCardClick,
+  onAddCard,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -26,24 +38,26 @@ export function KanbanColumn({
   });
 
   const isOverWip = column.wipLimit != null && cards.length >= column.wipLimit;
+  const barColor = COLUMN_COLORS[column.position % COLUMN_COLORS.length];
 
   return (
     <Paper
       p="sm"
-      withBorder
-      bg="var(--ab-surface-1)"
       miw={280}
       maw={320}
       h="100%"
+      className={classes.column}
+      data-testid={`column-${column.id}`}
       style={{
         borderColor: isOver ? 'var(--mantine-color-pink-5)' : undefined,
         flexShrink: 0,
       }}
     >
-      <Stack gap="xs" h="100%">
+      <div className={classes.statusBar} style={{ backgroundColor: barColor }} />
+      <Stack gap="xs" h="100%" pl="xs">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            <Text size="sm" fw={600} truncate>
+            <Text size="sm" fw={600} truncate className={classes.columnHeader}>
               {column.name}
             </Text>
             <Badge size="xs" variant="filled" color="dark">
@@ -84,6 +98,34 @@ export function KanbanColumn({
             </Stack>
           </SortableContext>
         </ScrollArea>
+
+        {onAddCard && (
+          <button
+            data-testid={`add-card-${column.id}`}
+            onClick={() => onAddCard(column.id)}
+            style={{
+              background: 'transparent',
+              border: '1px dashed #333',
+              borderRadius: 6,
+              padding: '8px 12px',
+              color: '#555',
+              cursor: 'pointer',
+              fontSize: 13,
+              transition: 'all 0.2s',
+              width: '100%',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#00fff2';
+              e.currentTarget.style.color = '#00fff2';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#333';
+              e.currentTarget.style.color = '#555';
+            }}
+          >
+            + Add Card
+          </button>
+        )}
       </Stack>
     </Paper>
   );

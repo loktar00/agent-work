@@ -12,7 +12,7 @@ export function ConnectionIndicator() {
   const config = statusConfig[status];
 
   return (
-    <Badge color={config.color} variant="dot" size="sm">
+    <Badge color={config.color} variant="dot" size="sm" data-testid="connection-indicator">
       {config.label}
     </Badge>
   );

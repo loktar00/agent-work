@@ -32,7 +32,7 @@ export function useMoveCard(boardId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { cardId: string; columnId: string; position: number }) =>
-      api.patch(`/api/cards/${data.cardId}/move`, {
+      api.post(`/api/cards/${data.cardId}/move`, {
         columnId: data.columnId,
         position: data.position,
       }),

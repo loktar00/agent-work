@@ -20,7 +20,7 @@ export function useAgent(id: string) {
 export function useCreateAgent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; type: string; config?: Record<string, unknown> }) =>
+    mutationFn: (data: { name: string; role: string; persona?: string | null; runnerId?: string | null; modelConfig?: Record<string, unknown> | null; toolPermissions?: Record<string, unknown> | null }) =>
       api.post('/api/agents', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.agents.all }),
   });

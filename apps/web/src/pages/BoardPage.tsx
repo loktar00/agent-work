@@ -1,9 +1,23 @@
-import { Container, Loader, Center } from '@mantine/core';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useCallback } from 'react';
+import {
+  Container,
+  Loader,
+  Center,
+  Modal,
+  TextInput,
+  Textarea,
+  Button,
+  Stack,
+  Title,
+  Group,
+  Anchor,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useCallback, useState } from 'react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useBoard } from '../api/hooks/useBoards';
-import { useColumns } from '../api/hooks/useColumns';
-import { useCards, useMoveCard } from '../api/hooks/useCards';
+import { useColumns, useCreateColumn } from '../api/hooks/useColumns';
+import { useCards, useMoveCard, useCreateCard } from '../api/hooks/useCards';
 import { useAgents } from '../api/hooks/useAgents';
 import { useBoardSSE } from '../hooks/useBoardSSE';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
@@ -12,18 +26,20 @@ import { useUIStore } from '../stores/uiStore';
 import { api } from '../api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../api/queryKeys';
-import type { Column, Card, Agent } from '@agent-board/shared';
+import type { Column, Card, Agent, Board } from '@agent-board/shared';
 
 export default function BoardPage() {
   const { boardId, cardId } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: board, isLoading: boardLoading } = useBoard(boardId ?? '');
+  const { data: board, isLoading: boardLoading } = useBoard(boardId ?? '') as { data: Board | undefined; isLoading: boolean };
   const { data: columns = [] } = useColumns(boardId ?? '') as { data: Column[] };
   const { data: cards = [] } = useCards(boardId ?? '') as { data: Card[] };
   const { data: agents = [] } = useAgents() as { data: Agent[] };
   const moveCard = useMoveCard(boardId ?? '');
+  const createColumn = useCreateColumn(boardId ?? '');
+  const createCard = useCreateCard(boardId ?? '');
 
   useBoardSSE(boardId);
 
@@ -31,6 +47,16 @@ export default function BoardPage() {
   const setActiveCard = useUIStore((s) => s.setActiveCard);
 
   const activeCard = cards.find((c) => c.id === activeCardId) ?? null;
+
+  // Column modal state
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+
+  // Card modal state
+  const [cardModalOpen, setCardModalOpen] = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const [newCardDescription, setNewCardDescription] = useState('');
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
 
   const agentNames: Record<string, string> = {};
   for (const agent of agents) {
@@ -58,6 +84,15 @@ export default function BoardPage() {
     if (boardId) navigate(`/boards/${boardId}`);
   }, [boardId, navigate, setActiveCard]);
 
+  const handleAddColumn = useCallback(() => {
+    setColumnModalOpen(true);
+  }, []);
+
+  const handleAddCard = useCallback((columnId: string) => {
+    setSelectedColumnId(columnId);
+    setCardModalOpen(true);
+  }, []);
+
   if (boardLoading) {
     return (
       <Center h="80vh">
@@ -68,12 +103,24 @@ export default function BoardPage() {
 
   return (
     <Container fluid h="calc(100vh - 100px)">
+      <Group mb="md" gap="sm">
+        <Anchor component={Link} to="/boards" c="dimmed" size="sm">
+          <Group gap={4}>
+            <IconArrowLeft size={14} />
+            Boards
+          </Group>
+        </Anchor>
+        <Title order={3}>{board?.name ?? 'Board'}</Title>
+      </Group>
+
       <KanbanBoard
         columns={columns}
         cards={cards}
         agentNames={agentNames}
         onCardMove={handleCardMove}
         onCardClick={handleCardClick}
+        onAddColumn={handleAddColumn}
+        onAddCard={handleAddCard}
       />
 
       <CardDetailDrawer
@@ -105,6 +152,103 @@ export default function BoardPage() {
           }
         }}
       />
+
+      <Modal
+        opened={columnModalOpen}
+        onClose={() => setColumnModalOpen(false)}
+        title="Create Column"
+        centered
+        data-testid="create-column-modal"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            value={newColumnName}
+            onChange={(e) => setNewColumnName(e.currentTarget.value)}
+            placeholder="Column name..."
+            data-testid="column-name-input"
+          />
+          <Button
+            data-testid="column-create-btn"
+            onClick={() => {
+              if (newColumnName.trim()) {
+                createColumn.mutate(
+                  { name: newColumnName.trim(), position: columns.length },
+                  {
+                    onSuccess: () => {
+                      notifications.show({
+                        title: 'Column created',
+                        message: `"${newColumnName.trim()}" has been added.`,
+                        color: 'green',
+                      });
+                      setColumnModalOpen(false);
+                      setNewColumnName('');
+                    },
+                  },
+                );
+              }
+            }}
+            loading={createColumn.isPending}
+          >
+            Create
+          </Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={cardModalOpen}
+        onClose={() => setCardModalOpen(false)}
+        title="Create Card"
+        centered
+        data-testid="create-card-modal"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Title"
+            value={newCardTitle}
+            onChange={(e) => setNewCardTitle(e.currentTarget.value)}
+            placeholder="Card title..."
+            data-testid="card-title-input"
+          />
+          <Textarea
+            label="Description"
+            value={newCardDescription}
+            onChange={(e) => setNewCardDescription(e.currentTarget.value)}
+            placeholder="Optional description..."
+            data-testid="card-description-input"
+          />
+          <Button
+            data-testid="card-create-btn"
+            onClick={() => {
+              if (newCardTitle.trim() && selectedColumnId) {
+                createCard.mutate(
+                  {
+                    title: newCardTitle.trim(),
+                    columnId: selectedColumnId,
+                    description: newCardDescription.trim() || undefined,
+                  },
+                  {
+                    onSuccess: () => {
+                      notifications.show({
+                        title: 'Card created',
+                        message: `"${newCardTitle.trim()}" has been added.`,
+                        color: 'green',
+                      });
+                      setCardModalOpen(false);
+                      setNewCardTitle('');
+                      setNewCardDescription('');
+                      setSelectedColumnId(null);
+                    },
+                  },
+                );
+              }
+            }}
+            loading={createCard.isPending}
+          >
+            Create
+          </Button>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

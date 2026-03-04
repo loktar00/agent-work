@@ -24,6 +24,8 @@ interface KanbanBoardProps {
   subtasksByCard?: Record<string, Subtask[]>;
   onCardMove: (cardId: string, columnId: string, position: number) => void;
   onCardClick?: (cardId: string) => void;
+  onAddCard?: (columnId: string) => void;
+  onAddColumn?: () => void;
 }
 
 export function KanbanBoard({
@@ -33,6 +35,8 @@ export function KanbanBoard({
   subtasksByCard,
   onCardMove,
   onCardClick,
+  onAddCard,
+  onAddColumn,
 }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
 
@@ -117,8 +121,42 @@ export function KanbanBoard({
               agentNames={agentNames}
               subtasksByCard={subtasksByCard}
               onCardClick={onCardClick}
+              onAddCard={onAddCard}
             />
           ))}
+        {onAddColumn && (
+          <button
+            data-testid="add-column-btn"
+            onClick={onAddColumn}
+            style={{
+              background: 'transparent',
+              border: '1px dashed #333',
+              borderRadius: 12,
+              padding: '24px',
+              color: '#555',
+              cursor: 'pointer',
+              fontSize: 14,
+              transition: 'all 0.2s',
+              minWidth: 280,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              minHeight: 120,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#00fff2';
+              e.currentTarget.style.color = '#00fff2';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#333';
+              e.currentTarget.style.color = '#555';
+            }}
+          >
+            + Add Column
+          </button>
+        )}
       </Group>
 
       <DragOverlay>

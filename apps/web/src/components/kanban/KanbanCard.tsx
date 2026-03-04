@@ -4,7 +4,9 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, Subtask } from '@agent-board/shared';
 import { AgentBadge } from '../AgentBadge';
 import { StatusBadge } from '../StatusBadge';
+import { PriorityBadge } from '../PriorityBadge';
 import { TimeAgo } from '../TimeAgo';
+import classes from './KanbanCard.module.css';
 
 interface KanbanCardProps {
   card: CardType;
@@ -39,9 +41,9 @@ export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardPro
       style={style}
       {...attributes}
       {...listeners}
-      p="sm"
       onClick={onClick}
-      withBorder
+      className={classes.card}
+      data-testid={`card-${card.id}`}
     >
       <Stack gap="xs">
         <Text size="sm" fw={500} lineClamp={2}>
@@ -50,6 +52,7 @@ export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardPro
 
         <Group gap="xs" wrap="wrap">
           <StatusBadge status={card.status} />
+          <PriorityBadge priority={card.priority} />
           {agentName && <AgentBadge name={agentName} />}
         </Group>
 

@@ -35,6 +35,7 @@ export default function BoardListPage() {
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={() => setCreateOpen(true)}
+          data-testid="new-board-btn"
         >
           New Board
         </Button>
@@ -59,6 +60,7 @@ export default function BoardListPage() {
               p="md"
               withBorder
               style={{ cursor: 'pointer' }}
+              data-testid={`board-card-${board.id}`}
               onClick={() => navigate(`/boards/${board.id}`)}
             >
               <Group justify="space-between" mb="xs">
@@ -80,6 +82,7 @@ export default function BoardListPage() {
         onClose={() => setCreateOpen(false)}
         title="Create Board"
         centered
+        data-testid="create-board-modal"
       >
         <Stack gap="md">
           <TextInput
@@ -87,14 +90,17 @@ export default function BoardListPage() {
             value={newName}
             onChange={(e) => setNewName(e.currentTarget.value)}
             placeholder="Board name..."
+            data-testid="board-name-input"
           />
           <Textarea
             label="Description"
             value={newDesc}
             onChange={(e) => setNewDesc(e.currentTarget.value)}
             placeholder="Optional description..."
+            data-testid="board-description-input"
           />
           <Button
+            data-testid="board-create-btn"
             onClick={() => {
               if (newName.trim()) {
                 createBoard.mutate(

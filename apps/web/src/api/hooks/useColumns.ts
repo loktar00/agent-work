@@ -14,7 +14,17 @@ export function useReorderColumns(boardId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (columnIds: string[]) =>
-      api.put(`/api/boards/${boardId}/columns/reorder`, { columnIds }),
+      api.post(`/api/boards/${boardId}/columns/reorder`, { orderedIds: columnIds }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) }),
+  });
+}
+
+export function useCreateColumn(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; position: number }) =>
+      api.post(`/api/boards/${boardId}/columns`, { ...data, boardId }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) }),
   });

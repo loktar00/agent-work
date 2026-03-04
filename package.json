@@ -4,9 +4,11 @@
   "scripts": {
     "dev:server": "pnpm --filter @agent-board/server dev",
     "dev:web": "pnpm --filter @agent-board/web dev",
-    "dev": "pnpm run --parallel dev:server dev:web",
+    "dev": "pnpm run dev:server & pnpm run dev:web",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -21,6 +23,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "drizzle-kit": "^0.30.6"
   }
 }

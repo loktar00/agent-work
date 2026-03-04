@@ -44,6 +44,7 @@ export default function AgentsPage() {
         onClose={() => setCreateOpen(false)}
         title="Create Agent"
         centered
+        data-testid="create-agent-modal"
       >
         <Stack gap="md">
           <TextInput
@@ -51,18 +52,21 @@ export default function AgentsPage() {
             value={newName}
             onChange={(e) => setNewName(e.currentTarget.value)}
             placeholder="Agent name..."
+            data-testid="agent-name-input"
           />
           <TextInput
             label="Role"
             value={newRole}
             onChange={(e) => setNewRole(e.currentTarget.value)}
             placeholder="e.g., developer, reviewer..."
+            data-testid="agent-role-input"
           />
           <Button
+            data-testid="agent-create-btn"
             onClick={() => {
               if (newName.trim() && newRole.trim()) {
                 createAgent.mutate(
-                  { name: newName.trim(), type: newRole.trim() },
+                  { name: newName.trim(), role: newRole.trim() },
                   {
                     onSuccess: () => {
                       setCreateOpen(false);
