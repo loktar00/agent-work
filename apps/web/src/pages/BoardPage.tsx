@@ -43,8 +43,9 @@ export default function BoardPage() {
 
   useBoardSSE(boardId);
 
-  const activeCardId = cardId ?? useUIStore((s) => s.activeCardId);
+  const storeActiveCardId = useUIStore((s) => s.activeCardId);
   const setActiveCard = useUIStore((s) => s.setActiveCard);
+  const activeCardId = cardId ?? storeActiveCardId;
 
   const activeCard = cards.find((c) => c.id === activeCardId) ?? null;
 
