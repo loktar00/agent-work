@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Group } from '@mantine/core';
 import {
   DndContext,
   DragOverlay,
@@ -16,6 +15,7 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { Column, Card as CardType, Subtask } from '@agent-board/shared';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCardDragOverlay } from './KanbanCardDragOverlay';
+import classes from './KanbanBoard.module.css';
 
 interface KanbanBoardProps {
   columns: Column[];
@@ -105,12 +105,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <Group
-        align="stretch"
-        gap="md"
-        wrap="nowrap"
-        style={{ overflowX: 'auto', height: '100%' }}
-      >
+      <div className={classes.boardContainer}>
         {columns
           .sort((a, b) => a.position - b.position)
           .map((column) => (
@@ -126,38 +121,14 @@ export function KanbanBoard({
           ))}
         {onAddColumn && (
           <button
+            className={classes.addColumnBtn}
             data-testid="add-column-btn"
             onClick={onAddColumn}
-            style={{
-              background: 'transparent',
-              border: '1px dashed #333',
-              borderRadius: 12,
-              padding: '24px',
-              color: '#555',
-              cursor: 'pointer',
-              fontSize: 14,
-              transition: 'all 0.2s',
-              minWidth: 280,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              minHeight: 120,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#00fff2';
-              e.currentTarget.style.color = '#00fff2';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#333';
-              e.currentTarget.style.color = '#555';
-            }}
           >
-            + Add Column
+            + ADD COLUMN
           </button>
         )}
-      </Group>
+      </div>
 
       <DragOverlay>
         {activeCard && <KanbanCardDragOverlay card={activeCard} />}

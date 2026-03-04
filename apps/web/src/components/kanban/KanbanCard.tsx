@@ -1,4 +1,4 @@
-import { Card, Group, Text, Stack, Progress } from '@mantine/core';
+import { Group, Text, Stack, Progress } from '@mantine/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, Subtask } from '@agent-board/shared';
@@ -29,14 +29,13 @@ export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardPro
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    cursor: 'grab',
   };
 
   const completedCount = subtasks?.filter((s) => s.completed).length ?? 0;
   const totalCount = subtasks?.length ?? 0;
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -72,6 +71,6 @@ export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardPro
 
         <TimeAgo date={card.updatedAt} />
       </Stack>
-    </Card>
+    </div>
   );
 }

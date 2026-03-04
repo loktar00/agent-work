@@ -16,10 +16,12 @@ import {
   IconHistory,
   IconArrowsMove,
   IconX,
+  IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { Card, Agent } from '@agent-board/shared';
 import { CardStatus } from '@agent-board/shared';
+import { useDeleteCard } from '../../api/hooks/useCards';
 import { StatusBadge } from '../StatusBadge';
 import { SubtaskList } from './SubtaskList';
 import { AcceptanceCriteriaList } from './AcceptanceCriteriaList';
@@ -30,6 +32,7 @@ import { RunHistory } from './RunHistory';
 interface CardDetailDrawerProps {
   card: Card | null;
   agents: Agent[];
+  boardId: string;
   opened: boolean;
   onClose: () => void;
   onUpdateTitle: (title: string) => void;
@@ -45,6 +48,7 @@ const statusOptions = Object.values(CardStatus).map((s) => ({
 export function CardDetailDrawer({
   card,
   agents,
+  boardId,
   opened,
   onClose,
   onUpdateTitle,
@@ -53,6 +57,7 @@ export function CardDetailDrawer({
 }: CardDetailDrawerProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const deleteCard = useDeleteCard(boardId);
 
   if (!card) return null;
 
@@ -149,12 +154,29 @@ export function CardDetailDrawer({
             <ArtifactsList cardId={card.id} />
           </Tabs.Panel>
           <Tabs.Panel value="discussion" pt="sm">
-            <DiscussionThread cardId={card.id} />
+            <DiscussionThread cardId={card.id} boardId={boardId} />
           </Tabs.Panel>
           <Tabs.Panel value="runs" pt="sm">
             <RunHistory cardId={card.id} />
           </Tabs.Panel>
         </Tabs>
+
+        <Button
+          color="red"
+          variant="light"
+          leftSection={<IconTrash size={16} />}
+          loading={deleteCard.isPending}
+          onClick={() => {
+            if (window.confirm('Are you sure you want to delete this card?')) {
+              deleteCard.mutate(card.id, {
+                onSuccess: () => onClose(),
+              });
+            }
+          }}
+          data-testid="delete-card-btn"
+        >
+          Delete Card
+        </Button>
       </Stack>
     </Drawer>
   );

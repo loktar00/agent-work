@@ -127,6 +127,7 @@ export default function BoardPage() {
       <CardDetailDrawer
         card={activeCard}
         agents={agents}
+        boardId={boardId ?? ''}
         opened={!!activeCardId}
         onClose={handleCloseDrawer}
         onUpdateTitle={(title) => {

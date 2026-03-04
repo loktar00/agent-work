@@ -112,21 +112,30 @@ export function AppShellLayout() {
             data-testid="nav-tutorial"
           />
           <Divider />
-          <NavLink
-            label="Project Thread"
-            leftSection={<IconMessageCircle size={18} />}
-            active={location.pathname.endsWith('/thread')}
-            onClick={() => {
-              const match = location.pathname.match(/^\/boards\/([^/]+)/);
-              if (match) navigate(`/boards/${match[1]}/thread`);
-            }}
-            variant="filled"
-            rightSection={
-              <Badge size="xs" color="green" variant="filled">
-                live
-              </Badge>
-            }
-          />
+          {(() => {
+            const boardMatch = location.pathname.match(/^\/boards\/([^/]+)/);
+            const currentBoardId = boardMatch ? boardMatch[1] : null;
+            return (
+              <NavLink
+                label="Project Thread"
+                leftSection={<IconMessageCircle size={18} />}
+                active={location.pathname.endsWith('/thread')}
+                disabled={!currentBoardId}
+                onClick={() => {
+                  if (currentBoardId) navigate(`/boards/${currentBoardId}/thread`);
+                }}
+                variant="filled"
+                rightSection={
+                  currentBoardId ? (
+                    <Badge size="xs" color="green" variant="filled">
+                      live
+                    </Badge>
+                  ) : undefined
+                }
+                data-testid="nav-thread"
+              />
+            );
+          })()}
         </Stack>
       </AppShell.Navbar>
 

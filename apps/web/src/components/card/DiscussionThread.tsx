@@ -11,9 +11,10 @@ import { MarkdownRenderer } from '../MarkdownRenderer';
 
 interface DiscussionThreadProps {
   cardId: string;
+  boardId: string;
 }
 
-export function DiscussionThread({ cardId }: DiscussionThreadProps) {
+export function DiscussionThread({ cardId, boardId }: DiscussionThreadProps) {
   const [newMessage, setNewMessage] = useState('');
   const qc = useQueryClient();
 
@@ -24,7 +25,9 @@ export function DiscussionThread({ cardId }: DiscussionThreadProps) {
 
   const sendMutation = useMutation({
     mutationFn: (content: string) =>
-      api.post(`/api/cards/${cardId}/messages`, {
+      api.post(`/api/messages`, {
+        boardId,
+        cardId,
         content,
         authorType: 'human',
         authorId: 'user',

@@ -40,3 +40,12 @@ export function useMoveCard(boardId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.cards.byBoard(boardId) }),
   });
 }
+
+export function useDeleteCard(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (cardId: string) => api.delete(`/api/cards/${cardId}`),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.cards.byBoard(boardId) }),
+  });
+}

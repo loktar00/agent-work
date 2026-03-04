@@ -41,7 +41,7 @@ test('create column and card via UI on an API-created board', async ({ page }) =
   await expect(page.locator('[data-testid^="column-"]').getByText('To Do')).toBeVisible();
 
   // Create a card via UI - click the "Add Card" button in the column
-  await page.getByText('+ Add Card').first().click();
+  await page.getByText('+ ADD TASK').first().click();
   await page.getByTestId('card-title-input').fill('My First Card');
   await page.getByTestId('card-create-btn').click();
 
@@ -61,7 +61,7 @@ test('create column via API, then create card via UI', async ({ page }) => {
   await expect(page.getByText('Backlog')).toBeVisible();
 
   // Create card via UI
-  await page.getByText('+ Add Card').click();
+  await page.getByText('+ ADD TASK').click();
   await page.getByTestId('card-title-input').fill('API Column Card');
   await page.getByTestId('card-create-btn').click();
 

@@ -35,7 +35,7 @@ export function SubtaskList({ cardId }: SubtaskListProps) {
 
   const toggleMutation = useMutation({
     mutationFn: (subtask: Subtask) =>
-      api.patch(`/api/cards/${cardId}/subtasks/${subtask.id}`, {
+      api.patch(`/api/subtasks/${subtask.id}`, {
         completed: !subtask.completed,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: key }),
@@ -43,7 +43,7 @@ export function SubtaskList({ cardId }: SubtaskListProps) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      api.delete(`/api/cards/${cardId}/subtasks/${id}`),
+      api.delete(`/api/subtasks/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: key }),
   });
 

@@ -1,17 +1,22 @@
 .card {
   background: linear-gradient(135deg, rgba(20, 20, 35, 0.9), rgba(15, 15, 25, 0.95));
   border: 1px solid #1a1a2e;
-  border-radius: 8px;
-  padding: 12px;
-  transition: all 0.2s;
+  border-radius: 4px;
+  padding: 1rem;
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
+  cursor: grab;
 }
 
 .card:hover {
   transform: translateY(-2px);
-  border-color: #00fff2;
-  box-shadow: 0 0 20px rgba(0, 255, 242, 0.15);
+  border-color: rgba(0, 255, 242, 0.5);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 242, 0.1);
+}
+
+.card:active {
+  cursor: grabbing;
 }
 
 .card::before {
@@ -21,5 +26,11 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #00fff2, #ff00aa);
+  background: linear-gradient(90deg, transparent, #00fff2, transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.card:hover::before {
+  opacity: 1;
 }

@@ -37,6 +37,7 @@ describe("CardDetailDrawer", () => {
       <CardDetailDrawer
         card={mockCard}
         agents={mockAgents}
+        boardId="b1"
         opened={true}
         onClose={vi.fn()}
         onUpdateTitle={vi.fn()}
@@ -53,6 +54,7 @@ describe("CardDetailDrawer", () => {
       <CardDetailDrawer
         card={mockCard}
         agents={mockAgents}
+        boardId="b1"
         opened={true}
         onClose={vi.fn()}
         onUpdateTitle={vi.fn()}
@@ -73,6 +75,7 @@ describe("CardDetailDrawer", () => {
       <CardDetailDrawer
         card={null}
         agents={mockAgents}
+        boardId="b1"
         opened={true}
         onClose={vi.fn()}
         onUpdateTitle={vi.fn()}
@@ -90,6 +93,7 @@ describe("CardDetailDrawer", () => {
       <CardDetailDrawer
         card={mockCard}
         agents={mockAgents}
+        boardId="b1"
         opened={true}
         onClose={vi.fn()}
         onUpdateTitle={vi.fn()}

@@ -10,13 +10,15 @@ import {
   Button,
   ScrollArea,
   Select,
+  Anchor,
 } from '@mantine/core';
-import { IconSend, IconMessageCircle } from '@tabler/icons-react';
-import { useParams } from 'react-router-dom';
+import { IconSend, IconMessageCircle, IconArrowLeft } from '@tabler/icons-react';
+import { useParams, Link } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
+import { useBoard } from '../api/hooks/useBoards';
 import { TimeAgo } from '../components/TimeAgo';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { EmptyState } from '../components/EmptyState';
@@ -28,6 +30,7 @@ export default function ProjectThreadPage() {
   const [newMessage, setNewMessage] = useState('');
   const [authorType, setAuthorType] = useState<string>('human');
   const viewportRef = useRef<HTMLDivElement>(null);
+  const { data: board } = useBoard(boardId ?? '') as { data: { id: string; name: string } | undefined };
 
   const { data: messages = [] } = useQuery<Message[]>({
     queryKey: queryKeys.messages.byBoard(boardId!),
@@ -37,7 +40,8 @@ export default function ProjectThreadPage() {
 
   const sendMutation = useMutation({
     mutationFn: (content: string) =>
-      api.post(`/api/boards/${boardId}/messages`, {
+      api.post(`/api/messages`, {
+        boardId,
         content,
         authorType,
         authorId: authorType === 'human' ? 'user' : 'system',
@@ -60,7 +64,15 @@ export default function ProjectThreadPage() {
   return (
     <Container size="md" h="calc(100vh - 120px)">
       <Stack h="100%" gap="md">
-        <Title order={2}>Project Thread</Title>
+        <Stack gap={4}>
+          <Group gap="xs">
+            <Anchor component={Link} to={`/boards/${boardId}`} c="dimmed" size="sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <IconArrowLeft size={14} />
+              {board?.name ?? 'Board'}
+            </Anchor>
+          </Group>
+          <Title order={2}>Project Thread</Title>
+        </Stack>
 
         <ScrollArea style={{ flex: 1 }} viewportRef={viewportRef}>
           {messages.length === 0 ? (
