@@ -1,5 +1,5 @@
 import { Group, Text, Badge, Menu, ActionIcon } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconDots, IconPencil, IconTrash, IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Column, Card as CardType, Subtask } from '@agent-board/shared';
@@ -27,6 +27,9 @@ interface KanbanColumnProps {
   onRunClick?: (runId: string) => void;
   onEditColumn?: (columnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
+  onMoveColumn?: (columnId: string, direction: 'left' | 'right') => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 export function KanbanColumn({
@@ -40,6 +43,9 @@ export function KanbanColumn({
   onRunClick,
   onEditColumn,
   onDeleteColumn,
+  onMoveColumn,
+  isFirst,
+  isLast,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -80,14 +86,31 @@ export function KanbanColumn({
               WIP
             </Badge>
           )}
-          {(onEditColumn || onDeleteColumn) && (
-            <Menu shadow="md" width={160} position="bottom-end">
+          {(onEditColumn || onDeleteColumn || onMoveColumn) && (
+            <Menu shadow="md" width={180} position="bottom-end">
               <Menu.Target>
                 <ActionIcon variant="subtle" size="xs" color="gray">
                   <IconDots size={14} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
+                {onMoveColumn && !isFirst && (
+                  <Menu.Item
+                    leftSection={<IconArrowLeft size={14} />}
+                    onClick={() => onMoveColumn(column.id, 'left')}
+                  >
+                    Move Left
+                  </Menu.Item>
+                )}
+                {onMoveColumn && !isLast && (
+                  <Menu.Item
+                    leftSection={<IconArrowRight size={14} />}
+                    onClick={() => onMoveColumn(column.id, 'right')}
+                  >
+                    Move Right
+                  </Menu.Item>
+                )}
+                {onMoveColumn && (onEditColumn || onDeleteColumn) && <Menu.Divider />}
                 {onEditColumn && (
                   <Menu.Item
                     leftSection={<IconPencil size={14} />}

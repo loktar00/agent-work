@@ -30,6 +30,7 @@ interface KanbanBoardProps {
   onRunClick?: (runId: string) => void;
   onEditColumn?: (columnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
+  onMoveColumn?: (columnId: string, direction: 'left' | 'right') => void;
 }
 
 export function KanbanBoard({
@@ -45,6 +46,7 @@ export function KanbanBoard({
   onRunClick,
   onEditColumn,
   onDeleteColumn,
+  onMoveColumn,
 }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
 
@@ -116,7 +118,7 @@ export function KanbanBoard({
       <div className={classes.boardContainer}>
         {columns
           .sort((a, b) => a.position - b.position)
-          .map((column) => (
+          .map((column, index, sorted) => (
             <KanbanColumn
               key={column.id}
               column={column}
@@ -129,6 +131,9 @@ export function KanbanBoard({
               onRunClick={onRunClick}
               onEditColumn={onEditColumn}
               onDeleteColumn={onDeleteColumn}
+              onMoveColumn={onMoveColumn}
+              isFirst={index === 0}
+              isLast={index === sorted.length - 1}
             />
           ))}
         {onAddColumn && (

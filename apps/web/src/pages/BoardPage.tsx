@@ -19,7 +19,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useBoard } from '../api/hooks/useBoards';
-import { useColumns, useCreateColumn, useUpdateColumn, useDeleteColumn } from '../api/hooks/useColumns';
+import { useColumns, useCreateColumn, useUpdateColumn, useDeleteColumn, useReorderColumns } from '../api/hooks/useColumns';
 import { useCards, useMoveCard, useCreateCard } from '../api/hooks/useCards';
 import { useAgents } from '../api/hooks/useAgents';
 import { useActiveRuns } from '../api/hooks/useRuns';
@@ -48,6 +48,7 @@ export default function BoardPage() {
   const createColumn = useCreateColumn(boardId ?? '');
   const updateColumn = useUpdateColumn(boardId ?? '');
   const deleteColumn = useDeleteColumn(boardId ?? '');
+  const reorderColumns = useReorderColumns(boardId ?? '');
   const createCard = useCreateCard(boardId ?? '');
 
   const { data: activeRuns = [] } = useActiveRuns(boardId ?? '');
@@ -142,6 +143,18 @@ export default function BoardPage() {
     setDeleteColumnId(columnId);
   }, []);
 
+  const handleMoveColumn = useCallback((columnId: string, direction: 'left' | 'right') => {
+    const sorted = [...columns].sort((a, b) => a.position - b.position);
+    const idx = sorted.findIndex((c) => c.id === columnId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    // Swap positions
+    const reordered = sorted.map((c) => c.id);
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    reorderColumns.mutate(reordered);
+  }, [columns, reorderColumns]);
+
   if (boardLoading) {
     return (
       <Center h="80vh">
@@ -178,6 +191,7 @@ export default function BoardPage() {
         onRunClick={handleRunClick}
         onEditColumn={handleEditColumn}
         onDeleteColumn={handleDeleteColumn}
+        onMoveColumn={handleMoveColumn}
       />
 
       <CardDetailDrawer
