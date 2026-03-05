@@ -37,3 +37,13 @@ export function useUpdateAgent(id: string) {
     },
   });
 }
+
+export function useDeleteAgent(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete(`/api/agents/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}

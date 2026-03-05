@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import {
   IconChevronDown,
-  IconChevronUp,
+  IconMessageCircle,
   IconSend,
   IconSettings,
   IconUsers,
@@ -271,7 +271,6 @@ export function BoardChatDrawer({ boardId }: BoardChatDrawerProps) {
 }
 
 export function BoardChatToggle() {
-  const open = useUIStore((s) => s.boardChatOpen);
   const toggle = useUIStore((s) => s.toggleBoardChat);
 
   return (
@@ -282,7 +281,7 @@ export function BoardChatToggle() {
       onClick={toggle}
       title="Toggle Board Chat"
     >
-      {open ? <IconChevronDown size={14} /> : <IconChevronUp size={14} />}
+      <IconMessageCircle size={14} />
     </ActionIcon>
   );
 }

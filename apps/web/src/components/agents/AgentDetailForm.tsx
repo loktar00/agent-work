@@ -30,10 +30,12 @@ const RUNNER_CONFIGS: Record<string, Record<string, unknown>> = {
 interface AgentDetailFormProps {
   agent: Agent | null;
   onSave: (data: Partial<Agent>) => void;
+  onDelete?: () => void;
   saving?: boolean;
+  deleting?: boolean;
 }
 
-export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps) {
+export function AgentDetailForm({ agent, onSave, onDelete, saving, deleting }: AgentDetailFormProps) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [persona, setPersona] = useState('');
@@ -259,7 +261,13 @@ export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps)
 
       <Divider my="sm" />
 
-      <Group justify="flex-end">
+      <Group justify="space-between">
+        {onDelete && (
+          <Button variant="light" color="red" onClick={onDelete} loading={deleting}>
+            Delete Agent
+          </Button>
+        )}
+        <div style={{ flex: 1 }} />
         <Button onClick={handleSave} loading={saving}>
           Save
         </Button>

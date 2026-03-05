@@ -1,7 +1,7 @@
 import { Grid, Container, Modal, TextInput, Stack, Button, Tabs } from '@mantine/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useAgents, useCreateAgent, useUpdateAgent } from '../api/hooks/useAgents';
+import { useAgents, useCreateAgent, useUpdateAgent, useDeleteAgent } from '../api/hooks/useAgents';
 import { AgentList } from '../components/agents/AgentList';
 import { AgentDetailForm } from '../components/agents/AgentDetailForm';
 import { AgentDirectory } from '../components/agents/AgentDirectory';
@@ -13,6 +13,7 @@ export default function AgentsPage() {
   const { data: agents = [] } = useAgents() as { data: Agent[] };
   const createAgent = useCreateAgent();
   const updateAgent = useUpdateAgent(agentId ?? '');
+  const deleteAgent = useDeleteAgent(agentId ?? '');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -40,7 +41,13 @@ export default function AgentsPage() {
           <AgentDetailForm
             agent={selectedAgent}
             onSave={(data) => updateAgent.mutate(data)}
+            onDelete={() => {
+              deleteAgent.mutate(undefined, {
+                onSuccess: () => navigate('/agents'),
+              });
+            }}
             saving={updateAgent.isPending}
+            deleting={deleteAgent.isPending}
           />
         </Grid.Col>
       </Grid>
