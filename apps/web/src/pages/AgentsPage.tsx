@@ -1,4 +1,4 @@
-import { Grid, Container, Modal, TextInput, Stack, Button, Tabs } from '@mantine/core';
+import { Grid, Container, Modal, TextInput, Textarea, Select, Stack, Button, Tabs } from '@mantine/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAgents, useCreateAgent, useUpdateAgent, useDeleteAgent } from '../api/hooks/useAgents';
@@ -18,6 +18,8 @@ export default function AgentsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState('');
+  const [newPersona, setNewPersona] = useState('');
+  const [newRunner, setNewRunner] = useState<string | null>(null);
 
   const selectedAgent = agents.find((a) => a.id === agentId) ?? null;
 
@@ -86,17 +88,49 @@ export default function AgentsPage() {
                 placeholder="e.g., developer, reviewer..."
                 data-testid="agent-role-input"
               />
+              <Select
+                label="Runner"
+                value={newRunner}
+                onChange={setNewRunner}
+                data={[
+                  { value: 'claude-code', label: 'Claude Code' },
+                  { value: 'droid', label: 'Factory Droid' },
+                  { value: 'opencode', label: 'OpenCode' },
+                  { value: 'codex', label: 'Codex CLI' },
+                  { value: 'aider', label: 'Aider' },
+                  { value: 'custom', label: 'Custom' },
+                ]}
+                clearable
+                placeholder="Select runner..."
+              />
+              <Textarea
+                label="Persona / System Prompt"
+                value={newPersona}
+                onChange={(e) => setNewPersona(e.currentTarget.value)}
+                placeholder="Paste the full agent prompt or markdown document here..."
+                autosize
+                minRows={10}
+                maxRows={20}
+                data-testid="agent-persona-input"
+              />
               <Button
                 data-testid="agent-create-btn"
                 onClick={() => {
                   if (newName.trim() && newRole.trim()) {
                     createAgent.mutate(
-                      { name: newName.trim(), role: newRole.trim() },
+                      {
+                        name: newName.trim(),
+                        role: newRole.trim(),
+                        persona: newPersona.trim() || null,
+                        runnerId: newRunner,
+                      },
                       {
                         onSuccess: () => {
                           setCreateOpen(false);
                           setNewName('');
                           setNewRole('');
+                          setNewPersona('');
+                          setNewRunner(null);
                         },
                       },
                     );
