@@ -44,6 +44,8 @@ const CREATE_TABLES = `
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    project_dir TEXT,
+    worktree_mode TEXT DEFAULT 'none',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );

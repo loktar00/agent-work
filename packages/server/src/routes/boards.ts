@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { createBoardSchema, updateBoardSchema } from "@agent-board/shared";
+import { worktreeService } from "../services/worktree.js";
 
 const boardRoutes: FastifyPluginAsync = async (fastify) => {
   const svc = fastify.services.boards;
@@ -51,6 +52,37 @@ const boardRoutes: FastifyPluginAsync = async (fastify) => {
     const deleted = svc.delete(req.params.id);
     if (!deleted) return reply.code(404).send({ error: "Board not found" });
     fastify.sse.emit("boards", "board:deleted", { id: req.params.id });
+    return { success: true };
+  });
+
+  // ── Worktree endpoints ────────────────────────────────────────────
+  const wt = worktreeService();
+
+  fastify.get<{ Params: { id: string } }>("/:id/worktrees", async (req, reply) => {
+    const board = svc.getById(req.params.id);
+    if (!board) return reply.code(404).send({ error: "Board not found" });
+    if (!board.projectDir) return [];
+    if (!wt.isGitRepo(board.projectDir)) return reply.code(400).send({ error: "Project directory is not a git repository" });
+    return wt.list(board.projectDir);
+  });
+
+  fastify.post<{ Params: { id: string } }>("/:id/worktrees", async (req, reply) => {
+    const board = svc.getById(req.params.id);
+    if (!board) return reply.code(404).send({ error: "Board not found" });
+    if (!board.projectDir) return reply.code(400).send({ error: "No project directory configured" });
+    const { branchName, baseBranch } = req.body as { branchName: string; baseBranch?: string };
+    if (!branchName) return reply.code(400).send({ error: "branchName is required" });
+    const wtDir = wt.acquire(board.projectDir, branchName, baseBranch);
+    return { path: wtDir, branch: branchName };
+  });
+
+  fastify.delete<{ Params: { id: string } }>("/:id/worktrees", async (req, reply) => {
+    const board = svc.getById(req.params.id);
+    if (!board) return reply.code(404).send({ error: "Board not found" });
+    if (!board.projectDir) return reply.code(400).send({ error: "No project directory configured" });
+    const { path: wtPath } = req.body as { path: string };
+    if (!wtPath) return reply.code(400).send({ error: "path is required" });
+    wt.release(board.projectDir, wtPath);
     return { success: true };
   });
 };

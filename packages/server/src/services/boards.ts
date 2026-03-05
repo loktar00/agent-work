@@ -21,6 +21,8 @@ export function boardService(db: DB) {
         id,
         name: input.name,
         description: input.description ?? null,
+        projectDir: input.projectDir ?? null,
+        worktreeMode: input.worktreeMode ?? "none",
         createdAt: ts,
         updatedAt: ts,
       };

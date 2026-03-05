@@ -14,6 +14,7 @@ export class ClaudeCodeAdapter extends BaseRunnerAdapter {
   }
 
   protected buildCommand(input: RunInput) {
+    const mc = input.agentConfig.modelConfig ?? {};
     const args = [
       "--print",
       "--output-format",
@@ -23,9 +24,21 @@ export class ClaudeCodeAdapter extends BaseRunnerAdapter {
 
     // Use model from LLM config or model config
     const model = input.agentConfig.llmConfig?.model
-      ?? (input.agentConfig.modelConfig?.model as string | undefined);
+      ?? (mc.model as string | undefined);
     if (model) {
       args.push("--model", model);
+    }
+
+    // Max turns
+    const maxTurns = mc.maxTurns as number | undefined;
+    if (maxTurns) {
+      args.push("--max-turns", String(maxTurns));
+    }
+
+    // Allowed tools
+    const allowedTools = mc.allowedTools as string[] | undefined;
+    if (allowedTools?.length) {
+      args.push("--allowedTools", allowedTools.join(","));
     }
 
     const env: Record<string, string> = {};

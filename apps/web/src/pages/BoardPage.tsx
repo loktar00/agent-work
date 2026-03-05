@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Container,
   Loader,
   Center,
@@ -13,12 +14,13 @@ import {
   Group,
   Anchor,
   Text,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
-import { IconArrowLeft } from '@tabler/icons-react';
-import { useBoard } from '../api/hooks/useBoards';
+import { IconArrowLeft, IconSettings } from '@tabler/icons-react';
+import { useBoard, useUpdateBoard } from '../api/hooks/useBoards';
 import { useColumns, useCreateColumn, useUpdateColumn, useDeleteColumn, useReorderColumns } from '../api/hooks/useColumns';
 import { useCards, useMoveCard, useCreateCard } from '../api/hooks/useCards';
 import { useAgents } from '../api/hooks/useAgents';
@@ -49,6 +51,7 @@ export default function BoardPage() {
   const updateColumn = useUpdateColumn(boardId ?? '');
   const deleteColumn = useDeleteColumn(boardId ?? '');
   const reorderColumns = useReorderColumns(boardId ?? '');
+  const updateBoard = useUpdateBoard(boardId ?? '');
   const createCard = useCreateCard(boardId ?? '');
 
   const { data: activeRuns = [] } = useActiveRuns(boardId ?? '');
@@ -78,6 +81,11 @@ export default function BoardPage() {
 
   // Column delete confirm state
   const [deleteColumnId, setDeleteColumnId] = useState<string | null>(null);
+
+  // Board settings modal state
+  const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
+  const [settingsProjectDir, setSettingsProjectDir] = useState('');
+  const [settingsWorktreeMode, setSettingsWorktreeMode] = useState<string | null>('none');
 
   // Card modal state
   const [cardModalOpen, setCardModalOpen] = useState(false);
@@ -175,6 +183,20 @@ export default function BoardPage() {
           </Group>
         </Anchor>
         <Title order={3}>{board?.name ?? 'Board'}</Title>
+        <Tooltip label="Board Settings">
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            onClick={() => {
+              setSettingsProjectDir(board?.projectDir ?? '');
+              setSettingsWorktreeMode(board?.worktreeMode ?? 'none');
+              setBoardSettingsOpen(true);
+            }}
+          >
+            <IconSettings size={16} />
+          </ActionIcon>
+        </Tooltip>
         <div style={{ flex: 1 }} />
         <BoardChatToggle />
       </Group>
@@ -418,6 +440,64 @@ export default function BoardPage() {
               Delete
             </Button>
           </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={boardSettingsOpen}
+        onClose={() => setBoardSettingsOpen(false)}
+        title="Board Settings"
+        centered
+        size="md"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Project Directory"
+            description="Absolute path to the project's git repository"
+            value={settingsProjectDir}
+            onChange={(e) => setSettingsProjectDir(e.currentTarget.value)}
+            placeholder="/home/user/projects/my-app"
+          />
+          <Select
+            label="Worktree Mode"
+            description="How to handle concurrent agent work"
+            value={settingsWorktreeMode}
+            onChange={setSettingsWorktreeMode}
+            data={[
+              { value: 'none', label: 'None — all agents work in the same directory' },
+              { value: 'auto', label: 'Auto — create a worktree per task automatically' },
+              { value: 'manual', label: 'Manual — manage worktrees yourself' },
+            ]}
+          />
+          {settingsWorktreeMode === 'auto' && (
+            <Text size="xs" c="dimmed">
+              When a task enters an agent's column, AWALL will create a git worktree with a branch named after the card.
+              Each concurrent task runs in its own worktree so agents don't conflict.
+            </Text>
+          )}
+          <Button
+            onClick={() => {
+              updateBoard.mutate(
+                {
+                  projectDir: settingsProjectDir.trim() || null,
+                  worktreeMode: settingsWorktreeMode ?? 'none',
+                },
+                {
+                  onSuccess: () => {
+                    notifications.show({
+                      title: 'Board settings saved',
+                      message: 'Project directory and worktree mode updated.',
+                      color: 'green',
+                    });
+                    setBoardSettingsOpen(false);
+                  },
+                },
+              );
+            }}
+            loading={updateBoard.isPending}
+          >
+            Save Settings
+          </Button>
         </Stack>
       </Modal>
 

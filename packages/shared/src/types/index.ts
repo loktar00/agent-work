@@ -10,10 +10,14 @@ import type {
   AuditAction,
 } from "../constants.js";
 
+export type WorktreeMode = 'none' | 'auto' | 'manual';
+
 export interface Board {
   id: string;
   name: string;
   description: string | null;
+  projectDir: string | null;
+  worktreeMode: WorktreeMode;
   createdAt: string;
   updatedAt: string;
 }

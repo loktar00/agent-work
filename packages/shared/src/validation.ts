@@ -11,15 +11,21 @@ import {
 } from "./constants.js";
 
 // ── Board ──────────────────────────────────────────────────────────
+export const worktreeModeSchema = z.enum(['none', 'auto', 'manual']);
+
 export const createBoardSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(2000).nullable().optional(),
+  projectDir: z.string().max(1000).nullable().optional(),
+  worktreeMode: worktreeModeSchema.optional(),
 });
 export type CreateBoardInput = z.infer<typeof createBoardSchema>;
 
 export const updateBoardSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().max(2000).nullable().optional(),
+  projectDir: z.string().max(1000).nullable().optional(),
+  worktreeMode: worktreeModeSchema.optional(),
 });
 export type UpdateBoardInput = z.infer<typeof updateBoardSchema>;
 

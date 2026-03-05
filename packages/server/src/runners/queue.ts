@@ -6,7 +6,10 @@ import type { RunInput, RunHandle } from "./types.js";
 import { runService } from "../services/runs.js";
 import { agentService } from "../services/agents.js";
 import { skillService } from "../services/skills.js";
+import { boardService } from "../services/boards.js";
 import { contextBuilder } from "../services/context.js";
+import { worktreeService } from "../services/worktree.js";
+import { cardService } from "../services/cards.js";
 import { now } from "../utils.js";
 import type { EventEmitter } from "node:events";
 
@@ -82,8 +85,11 @@ export class RunQueue {
   private async execute(item: QueueItem) {
     const runs = runService(this.db);
     const agents = agentService(this.db);
+    const boards = boardService(this.db);
+    const cards = cardService(this.db);
     const skills = skillService(this.db);
     const ctx = contextBuilder(this.db);
+    const wt = worktreeService();
 
     const run = runs.getById(item.runId);
     if (!run || run.status !== "queued") return;
@@ -103,6 +109,24 @@ export class RunQueue {
       return;
     }
 
+    // Resolve project directory from board settings
+    const board = boards.getById(run.boardId);
+    let runProjectDir = board?.projectDir ?? this.projectDir;
+    let worktreeDir: string | null = null;
+
+    // Handle worktree mode
+    if (board?.worktreeMode === "auto" && board.projectDir && wt.isGitRepo(board.projectDir)) {
+      try {
+        const card = cards.getById(run.cardId);
+        const branchName = wt.branchNameFromCard(run.cardId, card?.title ?? "task");
+        worktreeDir = wt.acquire(board.projectDir, branchName);
+        runProjectDir = worktreeDir;
+        runs.addEvent(item.runId, "stdout", `Using worktree: ${worktreeDir} (branch: ${branchName})`);
+      } catch (err) {
+        runs.addEvent(item.runId, "stderr", `Worktree creation failed, using base dir: ${err}`);
+      }
+    }
+
     // Mark as running
     runs.update(item.runId, { status: "running", startedAt: now() });
     this.sseEmitter.emit(`board:${run.boardId}`, {
@@ -115,7 +139,7 @@ export class RunQueue {
     const input: RunInput = {
       runId: item.runId,
       prompt: run.prompt ?? "Complete the task described in the card.",
-      projectDir: this.projectDir,
+      projectDir: runProjectDir,
       boardApiUrl: this.boardApiUrl,
       boardId: run.boardId,
       cardId: run.cardId,

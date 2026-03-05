@@ -14,9 +14,18 @@ export class CodexAdapter extends BaseRunnerAdapter {
   }
 
   protected buildCommand(input: RunInput) {
+    const mc = input.agentConfig.modelConfig ?? {};
+    const args = [...this.extraArgs];
+
+    const model = mc.model as string | undefined;
+    if (model) args.push("--model", model);
+
+    const approval = mc.approval as string | undefined;
+    if (approval) args.push("--approval-mode", approval);
+
     return {
       command: this.command,
-      args: [...this.extraArgs],
+      args,
       cwd: input.projectDir,
     };
   }

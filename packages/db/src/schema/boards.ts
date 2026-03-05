@@ -4,6 +4,8 @@ export const boards = sqliteTable("boards", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
+  projectDir: text("project_dir"),
+  worktreeMode: text("worktree_mode").default("none"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

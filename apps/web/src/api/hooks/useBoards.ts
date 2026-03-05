@@ -25,3 +25,15 @@ export function useCreateBoard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.boards.all }),
   });
 }
+
+export function useUpdateBoard(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      api.patch(`/api/boards/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.boards.all });
+      qc.invalidateQueries({ queryKey: queryKeys.boards.detail(id) });
+    },
+  });
+}
