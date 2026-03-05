@@ -123,7 +123,7 @@ export const llmSettingsSchema = z.object({
 export const createAgentSchema = z.object({
   name: z.string().min(1).max(255),
   role: z.string().min(1).max(255),
-  persona: z.string().max(10000).nullable().optional(),
+  persona: z.string().max(100000).nullable().optional(),
   runnerId: z.string().nullable().optional(),
   modelConfig: z.record(z.unknown()).nullable().optional(),
   llmConfig: llmSettingsSchema.nullable().optional(),
@@ -134,7 +134,7 @@ export type CreateAgentInput = z.infer<typeof createAgentSchema>;
 export const updateAgentSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   role: z.string().min(1).max(255).optional(),
-  persona: z.string().max(10000).nullable().optional(),
+  persona: z.string().max(100000).nullable().optional(),
   runnerId: z.string().nullable().optional(),
   modelConfig: z.record(z.unknown()).nullable().optional(),
   llmConfig: llmSettingsSchema.nullable().optional(),
