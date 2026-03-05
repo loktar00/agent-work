@@ -25,7 +25,9 @@ export const subtasks = sqliteTable("subtasks", {
     .notNull()
     .references(() => cards.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  description: text("description"),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
+  status: text("status").notNull().default("pending"),
   position: integer("position").notNull().default(0),
 });
 

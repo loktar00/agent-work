@@ -25,6 +25,8 @@
   font-size: 0.85rem;
   letter-spacing: 0.1em;
   min-height: 120px;
+  align-self: flex-start;
+  max-height: 200px;
 }
 
 .addColumnBtn:hover {

@@ -11,6 +11,7 @@ const mockAgent: Agent = {
   persona: "A helpful coding assistant",
   runnerId: "claude-code",
   modelConfig: null,
+  llmConfig: null,
   toolPermissions: null,
   createdAt: "2025-01-01T00:00:00Z",
 };

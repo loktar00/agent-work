@@ -28,7 +28,9 @@ export function subtaskService(db: DB) {
         id,
         cardId: input.cardId,
         title: input.title,
+        description: input.description ?? null,
         completed: false,
+        status: input.status ?? "pending",
         position: input.position ?? 0,
       };
       db.insert(subtasks).values(row).run();

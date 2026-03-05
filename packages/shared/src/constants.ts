@@ -57,6 +57,14 @@ export const AcceptanceCriteriaStatus = {
 export type AcceptanceCriteriaStatus =
   (typeof AcceptanceCriteriaStatus)[keyof typeof AcceptanceCriteriaStatus];
 
+export const SubtaskStatus = {
+  pending: "pending",
+  pass: "pass",
+  fail: "fail",
+} as const;
+export type SubtaskStatus =
+  (typeof SubtaskStatus)[keyof typeof SubtaskStatus];
+
 export const AuditAction = {
   create: "create",
   update: "update",
@@ -78,4 +86,5 @@ export const ARTIFACT_TYPE_VALUES = Object.values(ArtifactType);
 export const ACCEPTANCE_CRITERIA_STATUS_VALUES = Object.values(
   AcceptanceCriteriaStatus,
 );
+export const SUBTASK_STATUS_VALUES = Object.values(SubtaskStatus);
 export const AUDIT_ACTION_VALUES = Object.values(AuditAction);

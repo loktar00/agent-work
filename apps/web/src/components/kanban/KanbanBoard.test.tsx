@@ -41,8 +41,8 @@ const mockCards: Card[] = [
 
 const mockSubtasksByCard: Record<string, Subtask[]> = {
   "card-1": [
-    { id: "st-1", cardId: "card-1", title: "UI", completed: true, position: 0 },
-    { id: "st-2", cardId: "card-1", title: "API", completed: false, position: 1 },
+    { id: "st-1", cardId: "card-1", title: "UI", completed: true, description: null, status: "pending", position: 0 },
+    { id: "st-2", cardId: "card-1", title: "API", completed: false, description: null, status: "pending", position: 1 },
   ],
 };
 

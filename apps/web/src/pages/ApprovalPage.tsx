@@ -25,7 +25,6 @@ import { LogViewer } from '../components/LogViewer';
 import type {
   Card,
   Subtask,
-  AcceptanceCriterion,
   Run,
   Artifact,
 } from '@agent-board/shared';
@@ -45,12 +44,6 @@ export default function ApprovalPage() {
   const { data: subtasks = [] } = useQuery<Subtask[]>({
     queryKey: ['cards', cardId, 'subtasks'],
     queryFn: () => api.get(`/api/cards/${cardId}/subtasks`),
-    enabled: !!cardId,
-  });
-
-  const { data: criteria = [] } = useQuery<AcceptanceCriterion[]>({
-    queryKey: ['cards', cardId, 'criteria'],
-    queryFn: () => api.get(`/api/cards/${cardId}/acceptance-criteria`),
     enabled: !!cardId,
   });
 
@@ -93,8 +86,9 @@ export default function ApprovalPage() {
   }
 
   const completedSubtasks = subtasks.filter((s) => s.completed).length;
-  const passedCriteria = criteria.filter((c) => c.status === 'pass').length;
-  const failedCriteria = criteria.filter((c) => c.status === 'fail').length;
+  const subtasksWithDesc = subtasks.filter((s) => s.description);
+  const passedCriteria = subtasksWithDesc.filter((s) => s.status === 'pass').length;
+  const failedCriteria = subtasksWithDesc.filter((s) => s.status === 'fail').length;
   const testArtifacts = artifacts.filter((a) => a.type === 'test_result');
   const diffArtifacts = artifacts.filter((a) => a.type === 'diff');
 
@@ -137,32 +131,34 @@ export default function ApprovalPage() {
           </List>
         </Paper>
 
-        <Paper p="md" withBorder>
-          <Text fw={600} mb="sm">Acceptance Criteria</Text>
-          <Group gap="md" mb="sm">
-            <Badge color="green" variant="filled">{passedCriteria} passed</Badge>
-            <Badge color="red" variant="filled">{failedCriteria} failed</Badge>
-            <Badge color="gray" variant="filled">
-              {criteria.length - passedCriteria - failedCriteria} pending
-            </Badge>
-          </Group>
-          <List size="sm" spacing="xs">
-            {criteria.map((c) => (
-              <List.Item
-                key={c.id}
-                icon={
-                  c.status === 'pass' ? (
-                    <IconCheck size={14} color="green" />
-                  ) : c.status === 'fail' ? (
-                    <IconX size={14} color="red" />
-                  ) : null
-                }
-              >
-                <Text size="sm">{c.description}</Text>
-              </List.Item>
-            ))}
-          </List>
-        </Paper>
+        {subtasksWithDesc.length > 0 && (
+          <Paper p="md" withBorder>
+            <Text fw={600} mb="sm">Criteria (Subtasks with Descriptions)</Text>
+            <Group gap="md" mb="sm">
+              <Badge color="green" variant="filled">{passedCriteria} passed</Badge>
+              <Badge color="red" variant="filled">{failedCriteria} failed</Badge>
+              <Badge color="gray" variant="filled">
+                {subtasksWithDesc.length - passedCriteria - failedCriteria} pending
+              </Badge>
+            </Group>
+            <List size="sm" spacing="xs">
+              {subtasksWithDesc.map((s) => (
+                <List.Item
+                  key={s.id}
+                  icon={
+                    s.status === 'pass' ? (
+                      <IconCheck size={14} color="green" />
+                    ) : s.status === 'fail' ? (
+                      <IconX size={14} color="red" />
+                    ) : null
+                  }
+                >
+                  <Text size="sm">{s.title}: {s.description}</Text>
+                </List.Item>
+              ))}
+            </List>
+          </Paper>
+        )}
 
         {diffArtifacts.length > 0 && (
           <Paper p="md" withBorder>

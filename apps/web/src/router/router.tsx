@@ -8,8 +8,8 @@ const BoardPage = lazy(() => import('../pages/BoardPage'));
 const AgentsPage = lazy(() => import('../pages/AgentsPage'));
 const ActivityFeedPage = lazy(() => import('../pages/ActivityFeedPage'));
 const ApprovalPage = lazy(() => import('../pages/ApprovalPage'));
-const ProjectThreadPage = lazy(() => import('../pages/ProjectThreadPage'));
 const TutorialPage = lazy(() => import('../pages/TutorialPage'));
+const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 
 function PageLoader() {
   return (
@@ -29,11 +29,11 @@ export function AppRoutes() {
           <Route path="boards/:boardId" element={<BoardPage />} />
           <Route path="boards/:boardId/cards/:cardId" element={<BoardPage />} />
           <Route path="boards/:boardId/approve/:cardId" element={<ApprovalPage />} />
-          <Route path="boards/:boardId/thread" element={<ProjectThreadPage />} />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/:agentId" element={<AgentsPage />} />
           <Route path="activity" element={<ActivityFeedPage />} />
           <Route path="tutorial" element={<TutorialPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </Suspense>

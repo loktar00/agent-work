@@ -19,9 +19,13 @@ import { useBoard } from '../api/hooks/useBoards';
 import { useColumns, useCreateColumn } from '../api/hooks/useColumns';
 import { useCards, useMoveCard, useCreateCard } from '../api/hooks/useCards';
 import { useAgents } from '../api/hooks/useAgents';
+import { useActiveRuns } from '../api/hooks/useRuns';
 import { useBoardSSE } from '../hooks/useBoardSSE';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { CardDetailDrawer } from '../components/card/CardDetailDrawer';
+import { BoardChatDrawer, BoardChatToggle } from '../components/board/BoardChatDrawer';
+import { LiveActivityFeed } from '../components/board/LiveActivityFeed';
+import { RunLogViewer } from '../components/board/RunLogViewer';
 import { useUIStore } from '../stores/uiStore';
 import { api } from '../api/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -41,10 +45,17 @@ export default function BoardPage() {
   const createColumn = useCreateColumn(boardId ?? '');
   const createCard = useCreateCard(boardId ?? '');
 
+  const { data: activeRuns = [] } = useActiveRuns(boardId ?? '');
+
   useBoardSSE(boardId);
+
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [activityFeedOpen, setActivityFeedOpen] = useState(false);
 
   const storeActiveCardId = useUIStore((s) => s.activeCardId);
   const setActiveCard = useUIStore((s) => s.setActiveCard);
+  const boardChatOpen = useUIStore((s) => s.boardChatOpen);
+  const boardChatHeight = useUIStore((s) => s.boardChatHeight);
   const activeCardId = cardId ?? storeActiveCardId;
 
   const activeCard = cards.find((c) => c.id === activeCardId) ?? null;
@@ -63,6 +74,15 @@ export default function BoardPage() {
   for (const agent of agents) {
     agentNames[agent.id] = agent.name;
   }
+
+  const activeRunByCard: Record<string, string> = {};
+  for (const run of activeRuns) {
+    activeRunByCard[run.cardId] = run.id;
+  }
+
+  const handleRunClick = useCallback((runId: string) => {
+    setSelectedRunId(runId);
+  }, []);
 
   const handleCardMove = useCallback(
     (cardId: string, columnId: string, position: number) => {
@@ -102,8 +122,10 @@ export default function BoardPage() {
     );
   }
 
+  const drawerOffset = boardChatOpen ? boardChatHeight : 0;
+
   return (
-    <Container fluid h="calc(100vh - 100px)">
+    <Container fluid h={`calc(100vh - 100px - ${drawerOffset}px)`}>
       <Group mb="md" gap="sm">
         <Anchor component={Link} to="/boards" c="dimmed" size="sm">
           <Group gap={4}>
@@ -112,16 +134,20 @@ export default function BoardPage() {
           </Group>
         </Anchor>
         <Title order={3}>{board?.name ?? 'Board'}</Title>
+        <div style={{ flex: 1 }} />
+        <BoardChatToggle />
       </Group>
 
       <KanbanBoard
         columns={columns}
         cards={cards}
         agentNames={agentNames}
+        activeRunByCard={activeRunByCard}
         onCardMove={handleCardMove}
         onCardClick={handleCardClick}
         onAddColumn={handleAddColumn}
         onAddCard={handleAddCard}
+        onRunClick={handleRunClick}
       />
 
       <CardDetailDrawer
@@ -154,6 +180,8 @@ export default function BoardPage() {
           }
         }}
       />
+
+      {boardId && <BoardChatDrawer boardId={boardId} />}
 
       <Modal
         opened={columnModalOpen}
@@ -251,6 +279,19 @@ export default function BoardPage() {
           </Button>
         </Stack>
       </Modal>
+
+      <LiveActivityFeed
+        open={activityFeedOpen}
+        onToggle={() => setActivityFeedOpen((o) => !o)}
+        runs={activeRuns}
+        agentNames={agentNames}
+        onRunClick={handleRunClick}
+      />
+
+      <RunLogViewer
+        runId={selectedRunId}
+        onClose={() => setSelectedRunId(null)}
+      />
     </Container>
   );
 }

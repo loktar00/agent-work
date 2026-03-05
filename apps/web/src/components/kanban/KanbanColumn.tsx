@@ -20,8 +20,10 @@ interface KanbanColumnProps {
   cards: CardType[];
   agentNames: Record<string, string>;
   subtasksByCard?: Record<string, Subtask[]>;
+  activeRunByCard?: Record<string, string>;
   onCardClick?: (cardId: string) => void;
   onAddCard?: (columnId: string) => void;
+  onRunClick?: (runId: string) => void;
 }
 
 export function KanbanColumn({
@@ -29,8 +31,10 @@ export function KanbanColumn({
   cards,
   agentNames,
   subtasksByCard,
+  activeRunByCard,
   onCardClick,
   onAddCard,
+  onRunClick,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -90,7 +94,9 @@ export function KanbanColumn({
                     : undefined
                 }
                 subtasks={subtasksByCard?.[card.id]}
+                activeRunId={activeRunByCard?.[card.id]}
                 onClick={() => onCardClick?.(card.id)}
+                onPulseClick={onRunClick}
               />
             ))}
           </div>

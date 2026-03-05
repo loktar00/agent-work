@@ -6,6 +6,7 @@ import type {
   MessageAuthorType,
   ArtifactType,
   AcceptanceCriteriaStatus,
+  SubtaskStatus,
   AuditAction,
 } from "../constants.js";
 
@@ -44,7 +45,9 @@ export interface Subtask {
   id: string;
   cardId: string;
   title: string;
+  description: string | null;
   completed: boolean;
+  status: SubtaskStatus;
   position: number;
 }
 
@@ -63,6 +66,7 @@ export interface Agent {
   persona: string | null;
   runnerId: string | null;
   modelConfig: Record<string, unknown> | null;
+  llmConfig: LLMSettings | null;
   toolPermissions: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -145,4 +149,11 @@ export interface Lease {
   expiresAt: string;
   renewedAt: string | null;
   createdAt: string;
+}
+
+export interface LLMSettings {
+  provider: "openai" | "anthropic";
+  baseUrl: string;
+  apiKey: string;
+  model: string;
 }

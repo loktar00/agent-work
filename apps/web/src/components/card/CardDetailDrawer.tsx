@@ -4,18 +4,14 @@ import {
   Stack,
   Group,
   Select,
-  Tabs,
+  Accordion,
   Button,
-  ActionIcon,
 } from '@mantine/core';
 import {
   IconChecklist,
-  IconShield,
   IconFile,
   IconMessage,
   IconHistory,
-  IconArrowsMove,
-  IconX,
   IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -24,7 +20,6 @@ import { CardStatus } from '@agent-board/shared';
 import { useDeleteCard } from '../../api/hooks/useCards';
 import { StatusBadge } from '../StatusBadge';
 import { SubtaskList } from './SubtaskList';
-import { AcceptanceCriteriaList } from './AcceptanceCriteriaList';
 import { ArtifactsList } from './ArtifactsList';
 import { DiscussionThread } from './DiscussionThread';
 import { RunHistory } from './RunHistory';
@@ -125,41 +120,47 @@ export function CardDetailDrawer({
           />
         </Group>
 
-        <Tabs defaultValue="subtasks">
-          <Tabs.List>
-            <Tabs.Tab value="subtasks" leftSection={<IconChecklist size={14} />}>
+        <Accordion
+          multiple
+          defaultValue={['subtasks', 'artifacts', 'discussion', 'runs']}
+          variant="separated"
+        >
+          <Accordion.Item value="subtasks">
+            <Accordion.Control icon={<IconChecklist size={16} />}>
               Subtasks
-            </Tabs.Tab>
-            <Tabs.Tab value="criteria" leftSection={<IconShield size={14} />}>
-              Criteria
-            </Tabs.Tab>
-            <Tabs.Tab value="artifacts" leftSection={<IconFile size={14} />}>
-              Artifacts
-            </Tabs.Tab>
-            <Tabs.Tab value="discussion" leftSection={<IconMessage size={14} />}>
-              Discussion
-            </Tabs.Tab>
-            <Tabs.Tab value="runs" leftSection={<IconHistory size={14} />}>
-              Runs
-            </Tabs.Tab>
-          </Tabs.List>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <SubtaskList cardId={card.id} />
+            </Accordion.Panel>
+          </Accordion.Item>
 
-          <Tabs.Panel value="subtasks" pt="sm">
-            <SubtaskList cardId={card.id} />
-          </Tabs.Panel>
-          <Tabs.Panel value="criteria" pt="sm">
-            <AcceptanceCriteriaList cardId={card.id} />
-          </Tabs.Panel>
-          <Tabs.Panel value="artifacts" pt="sm">
-            <ArtifactsList cardId={card.id} />
-          </Tabs.Panel>
-          <Tabs.Panel value="discussion" pt="sm">
-            <DiscussionThread cardId={card.id} boardId={boardId} />
-          </Tabs.Panel>
-          <Tabs.Panel value="runs" pt="sm">
-            <RunHistory cardId={card.id} />
-          </Tabs.Panel>
-        </Tabs>
+          <Accordion.Item value="artifacts">
+            <Accordion.Control icon={<IconFile size={16} />}>
+              Artifacts
+            </Accordion.Control>
+            <Accordion.Panel>
+              <ArtifactsList cardId={card.id} />
+            </Accordion.Panel>
+          </Accordion.Item>
+
+          <Accordion.Item value="discussion">
+            <Accordion.Control icon={<IconMessage size={16} />}>
+              Discussion
+            </Accordion.Control>
+            <Accordion.Panel>
+              <DiscussionThread cardId={card.id} boardId={boardId} />
+            </Accordion.Panel>
+          </Accordion.Item>
+
+          <Accordion.Item value="runs">
+            <Accordion.Control icon={<IconHistory size={16} />}>
+              Runs
+            </Accordion.Control>
+            <Accordion.Panel>
+              <RunHistory cardId={card.id} />
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
 
         <Button
           color="red"

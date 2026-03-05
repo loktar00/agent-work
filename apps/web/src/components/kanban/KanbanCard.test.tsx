@@ -19,9 +19,9 @@ const mockCard: Card = {
 };
 
 const mockSubtasks: Subtask[] = [
-  { id: "st-1", cardId: "card-1", title: "Investigate", completed: true, position: 0 },
-  { id: "st-2", cardId: "card-1", title: "Fix", completed: true, position: 1 },
-  { id: "st-3", cardId: "card-1", title: "Test", completed: false, position: 2 },
+  { id: "st-1", cardId: "card-1", title: "Investigate", completed: true, description: null, status: "pending", position: 0 },
+  { id: "st-2", cardId: "card-1", title: "Fix", completed: true, description: null, status: "pending", position: 1 },
+  { id: "st-3", cardId: "card-1", title: "Test", completed: false, description: null, status: "pending", position: 2 },
 ];
 
 describe("KanbanCard", () => {

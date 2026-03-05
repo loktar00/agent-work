@@ -21,9 +21,34 @@ export class ClaudeCodeAdapter extends BaseRunnerAdapter {
       ...this.extraArgs,
     ];
 
+    // Use model from LLM config or model config
+    const model = input.agentConfig.llmConfig?.model
+      ?? (input.agentConfig.modelConfig?.model as string | undefined);
+    if (model) {
+      args.push("--model", model);
+    }
+
+    const env: Record<string, string> = {};
+
+    // Set API key from LLM config
+    if (input.agentConfig.llmConfig) {
+      const lc = input.agentConfig.llmConfig;
+      if (lc.provider === "anthropic" && lc.apiKey) {
+        env.ANTHROPIC_API_KEY = lc.apiKey;
+      } else if (lc.provider === "openai" && lc.apiKey) {
+        env.OPENAI_API_KEY = lc.apiKey;
+      }
+    }
+
+    // Board callback env vars
+    env.AWALL_API_URL = input.boardApiUrl;
+    env.AWALL_BOARD_ID = input.boardId;
+    env.AWALL_CARD_ID = input.cardId;
+
     return {
       command: this.command,
       args,
+      env,
       cwd: input.projectDir,
     };
   }
@@ -45,17 +70,21 @@ export class ClaudeCodeAdapter extends BaseRunnerAdapter {
       );
     }
 
-    if (input.context?.acceptanceCriteria?.length) {
-      parts.push(
-        `## Acceptance Criteria\n${JSON.stringify(input.context.acceptanceCriteria, null, 2)}\n`,
-      );
-    }
-
     if (input.context?.recentMessages?.length) {
       parts.push(
         `## Recent Messages\n${JSON.stringify(input.context.recentMessages, null, 2)}\n`,
       );
     }
+
+    // Board callback API instructions
+    const apiUrl = input.boardApiUrl;
+    const boardId = input.boardId;
+    parts.push(`## Board API
+You can report progress back to the board:
+- Complete subtask: POST ${apiUrl}/api/boards/${boardId}/tools/update_subtask {"input":{"cardId":"...","subtaskId":"...","completed":true}}
+- Post message: POST ${apiUrl}/api/boards/${boardId}/tools/send_message {"input":{"boardId":"${boardId}","cardId":"...","content":"..."}}
+- Move card when done: POST ${apiUrl}/api/boards/${boardId}/tools/move_card {"input":{"cardId":"...","columnId":"..."}}
+`);
 
     parts.push(`## Task\n${input.prompt}\n`);
 

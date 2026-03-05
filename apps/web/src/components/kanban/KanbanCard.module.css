@@ -34,3 +34,29 @@
 .card:hover::before {
   opacity: 1;
 }
+
+.pulse {
+  animation: pulseGlow 2s ease-in-out infinite;
+  border-color: rgba(0, 255, 242, 0.6);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 255, 242, 0.3), 0 0 10px rgba(0, 255, 242, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 242, 0.6), 0 0 40px rgba(0, 255, 242, 0.2);
+  }
+}
+
+.pulseIndicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00fff2;
+  animation: pulseGlow 2s ease-in-out infinite;
+  cursor: pointer;
+}

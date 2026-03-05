@@ -29,6 +29,15 @@ export function useBoardSSE(boardId: string | undefined) {
           case 'activity':
             qc.invalidateQueries({ queryKey: queryKeys.activity.byBoard(boardId) });
             break;
+          case 'board:updated':
+            qc.invalidateQueries({ queryKey: queryKeys.cards.byBoard(boardId) });
+            qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) });
+            qc.invalidateQueries({ queryKey: queryKeys.messages.byBoard(boardId) });
+            break;
+          case 'run:started':
+          case 'run:finished':
+            qc.invalidateQueries({ queryKey: queryKeys.runs.byBoard(boardId) });
+            break;
         }
       } catch {
         // ignore non-JSON events

@@ -19,6 +19,7 @@ export const queryKeys = {
   },
   runs: {
     byCard: (cardId: string) => ['cards', cardId, 'runs'] as const,
+    byBoard: (boardId: string) => ['boards', boardId, 'runs'] as const,
   },
   messages: {
     byCard: (cardId: string) => ['cards', cardId, 'messages'] as const,

@@ -12,11 +12,15 @@ import {
   Collapse,
   ScrollArea,
   Box,
+  Loader,
 } from '@mantine/core';
 import { IconSearch, IconRobot } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { agentPresets, divisions } from '../../data/agentPresets';
 import type { AgentPreset } from '../../data/agentPresets';
 import { useCreateAgent } from '../../api/hooks/useAgents';
+import { api } from '../../api/client';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 
 interface AgentDirectoryProps {
   onCreated: (id: string) => void;
@@ -49,10 +53,25 @@ function PresetCard({
   preset: AgentPreset;
   expanded: boolean;
   onToggle: () => void;
-  onUse: () => void;
+  onUse: (fullPersona: string) => void;
   loading: boolean;
 }) {
   const color = COLOR_MAP[preset.color] ?? 'cyan';
+
+  const { data: fullPersona, isLoading: personaLoading } = useQuery<string>({
+    queryKey: ['agent-persona', preset.githubFile],
+    queryFn: async () => {
+      if (!preset.githubFile) return preset.persona;
+      const res = await api.get<{ content: string }>(
+        `/api/agent-personas/${preset.githubFile}`,
+      );
+      return res.content;
+    },
+    enabled: expanded && !!preset.githubFile,
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  const displayPersona = fullPersona ?? preset.persona;
 
   return (
     <Card
@@ -90,13 +109,12 @@ function PresetCard({
 
       <Collapse in={expanded}>
         <Stack gap="xs" mt="sm">
-          <ScrollArea.Autosize mah={200}>
-            <Text
-              size="xs"
-              style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--mantine-font-family-monospace)' }}
-            >
-              {preset.persona}
-            </Text>
+          <ScrollArea.Autosize mah={300}>
+            {personaLoading ? (
+              <Loader size="sm" color="pink" />
+            ) : (
+              <MarkdownRenderer content={displayPersona} />
+            )}
           </ScrollArea.Autosize>
 
           <Group gap="xs">
@@ -110,7 +128,7 @@ function PresetCard({
             fullWidth
             onClick={(e) => {
               e.stopPropagation();
-              onUse();
+              onUse(displayPersona);
             }}
             loading={loading}
           >
@@ -141,12 +159,12 @@ export function AgentDirectory({ onCreated }: AgentDirectoryProps) {
     });
   }, [search, division]);
 
-  const handleUse = (preset: AgentPreset) => {
+  const handleUse = (preset: AgentPreset, fullPersona: string) => {
     createAgent.mutate(
       {
         name: preset.name,
         role: preset.role,
-        persona: preset.persona,
+        persona: fullPersona,
         runnerId: preset.suggestedRunner,
         modelConfig: preset.suggestedModelConfig,
       },
@@ -191,7 +209,7 @@ export function AgentDirectory({ onCreated }: AgentDirectoryProps) {
                 onToggle={() =>
                   setExpandedId(expandedId === preset.id ? null : preset.id)
                 }
-                onUse={() => handleUse(preset)}
+                onUse={(fullPersona) => handleUse(preset, fullPersona)}
                 loading={createAgent.isPending}
               />
             ))}

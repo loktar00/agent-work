@@ -7,6 +7,7 @@ export const agents = sqliteTable("agents", {
   persona: text("persona"),
   runnerId: text("runner_id"),
   modelConfig: text("model_config"),
+  llmConfig: text("llm_config"),
   toolPermissions: text("tool_permissions"),
   createdAt: text("created_at").notNull(),
 });

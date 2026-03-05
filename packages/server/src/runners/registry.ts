@@ -32,6 +32,10 @@ export class RunnerRegistry {
     }
   }
 
+  register(name: string, adapter: RunnerAdapter): void {
+    this.adapters.set(name, adapter);
+  }
+
   get(name: string): RunnerAdapter | undefined {
     return this.adapters.get(name);
   }

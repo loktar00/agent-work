@@ -6,16 +6,15 @@ import {
   Text,
   NavLink,
   Stack,
-  Badge,
   Divider,
 } from '@mantine/core';
 import {
   IconLayout2,
   IconRobot,
   IconActivity,
-  IconMessageCircle,
   IconSchool,
   IconHelp,
+  IconSettings,
 } from '@tabler/icons-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '../stores/uiStore';
@@ -111,31 +110,15 @@ export function AppShellLayout() {
             variant="filled"
             data-testid="nav-tutorial"
           />
-          <Divider />
-          {(() => {
-            const boardMatch = location.pathname.match(/^\/boards\/([^/]+)/);
-            const currentBoardId = boardMatch ? boardMatch[1] : null;
-            return (
-              <NavLink
-                label="Project Thread"
-                leftSection={<IconMessageCircle size={18} />}
-                active={location.pathname.endsWith('/thread')}
-                disabled={!currentBoardId}
-                onClick={() => {
-                  if (currentBoardId) navigate(`/boards/${currentBoardId}/thread`);
-                }}
-                variant="filled"
-                rightSection={
-                  currentBoardId ? (
-                    <Badge size="xs" color="green" variant="filled">
-                      live
-                    </Badge>
-                  ) : undefined
-                }
-                data-testid="nav-thread"
-              />
-            );
-          })()}
+          <Divider my="xs" />
+          <NavLink
+            label="Settings"
+            leftSection={<IconSettings size={18} />}
+            active={location.pathname.startsWith('/settings')}
+            onClick={() => navigate('/settings')}
+            variant="filled"
+            data-testid="nav-settings"
+          />
         </Stack>
       </AppShell.Navbar>
 

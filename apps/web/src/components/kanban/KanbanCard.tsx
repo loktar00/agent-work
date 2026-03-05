@@ -13,9 +13,11 @@ interface KanbanCardProps {
   agentName?: string;
   subtasks?: Subtask[];
   onClick?: () => void;
+  activeRunId?: string;
+  onPulseClick?: (runId: string) => void;
 }
 
-export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardProps) {
+export function KanbanCard({ card, agentName, subtasks, onClick, activeRunId, onPulseClick }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -41,9 +43,19 @@ export function KanbanCard({ card, agentName, subtasks, onClick }: KanbanCardPro
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={classes.card}
+      className={`${classes.card}${activeRunId ? ` ${classes.pulse}` : ''}`}
       data-testid={`card-${card.id}`}
     >
+      {activeRunId && (
+        <div
+          className={classes.pulseIndicator}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPulseClick?.(activeRunId);
+          }}
+          title="Agent working — click to view"
+        />
+      )}
       <Stack gap="xs">
         <Text size="sm" fw={500} lineClamp={2}>
           {card.title}

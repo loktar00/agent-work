@@ -7,6 +7,7 @@ import {
   MESSAGE_AUTHOR_TYPE_VALUES,
   ARTIFACT_TYPE_VALUES,
   ACCEPTANCE_CRITERIA_STATUS_VALUES,
+  SUBTASK_STATUS_VALUES,
 } from "./constants.js";
 
 // ── Board ──────────────────────────────────────────────────────────
@@ -74,13 +75,17 @@ export type MoveCardInput = z.infer<typeof moveCardSchema>;
 export const createSubtaskSchema = z.object({
   cardId: z.string().min(1),
   title: z.string().min(1).max(500),
+  description: z.string().max(2000).nullable().optional(),
+  status: z.enum(SUBTASK_STATUS_VALUES as [string, ...string[]]).optional(),
   position: z.number().int().min(0).optional(),
 });
 export type CreateSubtaskInput = z.infer<typeof createSubtaskSchema>;
 
 export const updateSubtaskSchema = z.object({
   title: z.string().min(1).max(500).optional(),
+  description: z.string().max(2000).nullable().optional(),
   completed: z.boolean().optional(),
+  status: z.enum(SUBTASK_STATUS_VALUES as [string, ...string[]]).optional(),
   position: z.number().int().min(0).optional(),
 });
 export type UpdateSubtaskInput = z.infer<typeof updateSubtaskSchema>;
@@ -106,6 +111,14 @@ export type UpdateAcceptanceCriterionInput = z.infer<
   typeof updateAcceptanceCriterionSchema
 >;
 
+// ── LLM Settings ──────────────────────────────────────────────────
+export const llmSettingsSchema = z.object({
+  provider: z.enum(["openai", "anthropic"]),
+  baseUrl: z.string().url(),
+  apiKey: z.string().min(1),
+  model: z.string().min(1),
+});
+
 // ── Agent ──────────────────────────────────────────────────────────
 export const createAgentSchema = z.object({
   name: z.string().min(1).max(255),
@@ -113,6 +126,7 @@ export const createAgentSchema = z.object({
   persona: z.string().max(10000).nullable().optional(),
   runnerId: z.string().nullable().optional(),
   modelConfig: z.record(z.unknown()).nullable().optional(),
+  llmConfig: llmSettingsSchema.nullable().optional(),
   toolPermissions: z.record(z.unknown()).nullable().optional(),
 });
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
@@ -123,6 +137,7 @@ export const updateAgentSchema = z.object({
   persona: z.string().max(10000).nullable().optional(),
   runnerId: z.string().nullable().optional(),
   modelConfig: z.record(z.unknown()).nullable().optional(),
+  llmConfig: llmSettingsSchema.nullable().optional(),
   toolPermissions: z.record(z.unknown()).nullable().optional(),
 });
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;

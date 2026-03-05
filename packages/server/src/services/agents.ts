@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 import { agents, agentSkills, skills } from "@agent-board/db";
 import type { DB } from "@agent-board/db";
-import type { CreateAgentInput, UpdateAgentInput } from "@agent-board/shared";
+import type { CreateAgentInput, UpdateAgentInput, LLMSettings } from "@agent-board/shared";
 import { newId, now } from "../utils.js";
+import type { settingsService } from "./settings.js";
 
-export function agentService(db: DB) {
+export function agentService(db: DB, settingsSvc?: ReturnType<typeof settingsService>) {
   return {
     list() {
       return db.select().from(agents).all();
@@ -25,6 +26,9 @@ export function agentService(db: DB) {
         runnerId: input.runnerId ?? null,
         modelConfig: input.modelConfig
           ? JSON.stringify(input.modelConfig)
+          : null,
+        llmConfig: input.llmConfig
+          ? JSON.stringify(input.llmConfig)
           : null,
         toolPermissions: input.toolPermissions
           ? JSON.stringify(input.toolPermissions)
@@ -51,12 +55,25 @@ export function agentService(db: DB) {
         updates.modelConfig = input.modelConfig
           ? JSON.stringify(input.modelConfig)
           : null;
+      if (input.llmConfig !== undefined)
+        updates.llmConfig = input.llmConfig
+          ? JSON.stringify(input.llmConfig)
+          : null;
       if (input.toolPermissions !== undefined)
         updates.toolPermissions = input.toolPermissions
           ? JSON.stringify(input.toolPermissions)
           : null;
       db.update(agents).set(updates).where(eq(agents.id, id)).run();
       return db.select().from(agents).where(eq(agents.id, id)).get();
+    },
+
+    getEffectiveLLMSettings(agentId: string): LLMSettings | null {
+      const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+      if (!agent) return null;
+      if (agent.llmConfig) {
+        return JSON.parse(agent.llmConfig) as LLMSettings;
+      }
+      return settingsSvc?.getLLMSettings() ?? null;
     },
 
     delete(id: string) {

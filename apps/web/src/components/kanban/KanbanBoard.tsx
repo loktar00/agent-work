@@ -22,10 +22,12 @@ interface KanbanBoardProps {
   cards: CardType[];
   agentNames: Record<string, string>;
   subtasksByCard?: Record<string, Subtask[]>;
+  activeRunByCard?: Record<string, string>;
   onCardMove: (cardId: string, columnId: string, position: number) => void;
   onCardClick?: (cardId: string) => void;
   onAddCard?: (columnId: string) => void;
   onAddColumn?: () => void;
+  onRunClick?: (runId: string) => void;
 }
 
 export function KanbanBoard({
@@ -33,10 +35,12 @@ export function KanbanBoard({
   cards,
   agentNames,
   subtasksByCard,
+  activeRunByCard,
   onCardMove,
   onCardClick,
   onAddCard,
   onAddColumn,
+  onRunClick,
 }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
 
@@ -115,8 +119,10 @@ export function KanbanBoard({
               cards={cardsByColumn(column.id)}
               agentNames={agentNames}
               subtasksByCard={subtasksByCard}
+              activeRunByCard={activeRunByCard}
               onCardClick={onCardClick}
               onAddCard={onAddCard}
+              onRunClick={onRunClick}
             />
           ))}
         {onAddColumn && (

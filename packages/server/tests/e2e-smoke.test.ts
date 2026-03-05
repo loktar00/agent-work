@@ -96,15 +96,6 @@ describe("E2E Smoke Test", () => {
     });
     expect(st2Res.statusCode).toBe(201);
 
-    const acRes = await app.inject({
-      method: "POST",
-      url: `/api/cards/${card.id}/acceptance-criteria`,
-      payload: { description: "All API endpoints respond with correct status codes" },
-    });
-    expect(acRes.statusCode).toBe(201);
-    const ac = JSON.parse(acRes.body);
-    expect(ac.status).toBe("pending");
-
     // 6. Complete a subtask
     const toggleRes = await app.inject({
       method: "PATCH",
@@ -165,15 +156,7 @@ describe("E2E Smoke Test", () => {
     expect(events).toHaveLength(1);
     expect(events[0].data).toBe("Task completed successfully.");
 
-    // 11. Pass acceptance criteria
-    const passRes = await app.inject({
-      method: "PATCH",
-      url: `/api/acceptance-criteria/${ac.id}`,
-      payload: { status: "pass" },
-    });
-    expect(JSON.parse(passRes.body).status).toBe("pass");
-
-    // 12. Verify audit trail captures all mutations
+    // 11. Verify audit trail captures all mutations
     const auditRes = await app.inject({
       method: "GET",
       url: `/api/boards/${board.id}/audit`,

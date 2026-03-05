@@ -124,8 +124,8 @@ test.describe('Discussion messages', () => {
     await page.goto(`/boards/${boardId}`);
     await page.locator(`[data-testid="card-${cardId}"]`).click();
 
-    // Click on the Discussion tab
-    await page.getByRole('tab', { name: 'Discussion' }).click();
+    // Click on the Discussion accordion section
+    await page.getByText('Discussion').click();
 
     // Verify the empty state
     await expect(page.getByText('No messages')).toBeVisible();
@@ -148,35 +148,32 @@ test.describe('Discussion messages', () => {
   });
 });
 
-test.describe('Board project thread', () => {
+test.describe('Board chat drawer', () => {
   let boardId: string;
 
   test.beforeEach(async () => {
-    const board = await createBoard(`Thread Test ${Date.now()}`);
+    const board = await createBoard(`Chat Test ${Date.now()}`);
     boardId = board.id;
   });
 
-  test('send a message in board project thread', async ({ page }) => {
-    await page.goto(`/boards/${boardId}/thread`);
+  test('toggle board chat drawer', async ({ page }) => {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByText(board?.name ?? 'Chat Test')).toBeVisible({ timeout: 5000 });
 
-    // Wait for the page to load - use heading role to avoid matching nav link
-    await expect(page.getByRole('heading', { name: 'Project Thread' })).toBeVisible();
+    // Click the chat toggle button
+    await page.getByTitle('Toggle Board Chat').click();
 
-    // Type a message
-    const messageText = `Board thread message ${Date.now()}`;
-    await page.getByPlaceholder('Write a message...').fill(messageText);
+    // Verify the board chat drawer opens
+    await expect(page.getByText('Board Chat')).toBeVisible({ timeout: 5000 });
 
-    // Click Send
-    await page.getByRole('button', { name: 'Send' }).click();
-
-    // Verify the message appears
-    await expect(page.getByText(messageText)).toBeVisible({ timeout: 5000 });
-
-    // Verify author type badge
-    await expect(page.getByText('human').first()).toBeVisible();
+    // Verify the input area is present
+    await expect(page.getByPlaceholder('Ask the PM orchestrator...')).toBeVisible();
 
     // Screenshot
-    await page.screenshot({ path: 'test-results/board-thread-message.png' });
+    await page.screenshot({ path: 'test-results/board-chat-drawer.png' });
+
+    // Close the drawer
+    await page.locator('.mantine-ActionIcon-root').filter({ hasText: '' }).last().click();
   });
 });
 

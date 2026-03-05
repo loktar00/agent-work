@@ -23,6 +23,7 @@ export class RunQueue {
   private registry: RunnerRegistry;
   private sseEmitter: EventEmitter;
   private projectDir: string;
+  private boardApiUrl: string;
 
   constructor(opts: {
     db: DB;
@@ -30,12 +31,14 @@ export class RunQueue {
     sseEmitter: EventEmitter;
     maxConcurrency?: number;
     projectDir?: string;
+    boardApiUrl?: string;
   }) {
     this.db = opts.db;
     this.registry = opts.registry;
     this.sseEmitter = opts.sseEmitter;
     this.maxConcurrency = opts.maxConcurrency ?? 2;
     this.projectDir = opts.projectDir ?? process.cwd();
+    this.boardApiUrl = opts.boardApiUrl ?? "http://localhost:3000";
   }
 
   enqueue(runId: string) {
@@ -113,12 +116,18 @@ export class RunQueue {
       runId: item.runId,
       prompt: run.prompt ?? "Complete the task described in the card.",
       projectDir: this.projectDir,
+      boardApiUrl: this.boardApiUrl,
+      boardId: run.boardId,
+      cardId: run.cardId,
       agentConfig: {
         name: agent.name,
         role: agent.role,
         persona: agent.persona,
         modelConfig: agent.modelConfig
           ? JSON.parse(agent.modelConfig)
+          : null,
+        llmConfig: agent.llmConfig
+          ? JSON.parse(agent.llmConfig)
           : null,
         toolPermissions: agent.toolPermissions
           ? JSON.parse(agent.toolPermissions)
@@ -132,7 +141,6 @@ export class RunQueue {
         ? {
             card: cardContext.card as unknown as Record<string, unknown>,
             subtasks: cardContext.subtasks,
-            acceptanceCriteria: cardContext.acceptanceCriteria,
             recentMessages: cardContext.recentMessages,
             artifacts: cardContext.artifacts,
           }

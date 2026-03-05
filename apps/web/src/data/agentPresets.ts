@@ -10,6 +10,7 @@ export interface AgentPreset {
   suggestedModelConfig: Record<string, unknown>;
   color: string;
   attribution: string;
+  githubFile?: string;
 }
 
 const MIT = 'AgentLand Contributors (MIT)';
@@ -37,6 +38,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'cyan',
     attribution: MIT,
+    githubFile: 'engineering/engineering-frontend-developer.md',
   },
   {
     id: 'backend-architect',
@@ -59,6 +61,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'blue',
     attribution: MIT,
+    githubFile: 'engineering/engineering-backend-architect.md',
   },
   {
     id: 'senior-developer',
@@ -81,6 +84,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'indigo',
     attribution: MIT,
+    githubFile: 'engineering/engineering-senior-developer.md',
   },
   {
     id: 'ai-engineer',
@@ -103,6 +107,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'violet',
     attribution: MIT,
+    githubFile: 'engineering/engineering-ai-engineer.md',
   },
   {
     id: 'devops-automator',
@@ -125,6 +130,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'orange',
     attribution: MIT,
+    githubFile: 'engineering/engineering-devops-automator.md',
   },
   {
     id: 'rapid-prototyper',
@@ -147,6 +153,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'yellow',
     attribution: MIT,
+    githubFile: 'engineering/engineering-rapid-prototyper.md',
   },
 
   // ── Design ──
@@ -171,6 +178,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'pink',
     attribution: MIT,
+    githubFile: 'design/design-ui-designer.md',
   },
   {
     id: 'ux-researcher',
@@ -193,6 +201,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'teal',
     attribution: MIT,
+    githubFile: 'design/design-ux-researcher.md',
   },
   {
     id: 'ux-architect',
@@ -215,6 +224,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'grape',
     attribution: MIT,
+    githubFile: 'design/design-ux-architect.md',
   },
 
   // ── Testing ──
@@ -239,6 +249,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'red',
     attribution: MIT,
+    githubFile: 'testing/testing-api-tester.md',
   },
   {
     id: 'evidence-collector',
@@ -261,6 +272,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Bash', 'Glob', 'Grep'] },
     color: 'orange',
     attribution: MIT,
+    githubFile: 'testing/testing-evidence-collector.md',
   },
   {
     id: 'performance-benchmarker',
@@ -283,6 +295,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'lime',
     attribution: MIT,
+    githubFile: 'testing/testing-performance-benchmarker.md',
   },
   {
     id: 'workflow-optimizer',
@@ -305,6 +318,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'teal',
     attribution: MIT,
+    githubFile: 'testing/testing-workflow-optimizer.md',
   },
 
   // ── Product ──
@@ -329,6 +343,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'blue',
     attribution: MIT,
+    githubFile: 'product/product-sprint-prioritizer.md',
   },
   {
     id: 'trend-researcher',
@@ -351,6 +366,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'grape',
     attribution: MIT,
+    githubFile: 'product/product-trend-researcher.md',
   },
   {
     id: 'feedback-synthesizer',
@@ -373,6 +389,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'cyan',
     attribution: MIT,
+    githubFile: 'product/product-feedback-synthesizer.md',
   },
 
   // ── Project Management ──
@@ -397,6 +414,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'green',
     attribution: MIT,
+    githubFile: 'project-management/pm-project-shepherd.md',
   },
   {
     id: 'senior-project-manager',
@@ -419,6 +437,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'indigo',
     attribution: MIT,
+    githubFile: 'project-management/pm-senior-project-manager.md',
   },
 
   // ── Marketing ──
@@ -443,6 +462,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'orange',
     attribution: MIT,
+    githubFile: 'marketing/marketing-growth-hacker.md',
   },
   {
     id: 'content-creator',
@@ -465,6 +485,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'pink',
     attribution: MIT,
+    githubFile: 'marketing/marketing-content-creator.md',
   },
   {
     id: 'social-media-strategist',
@@ -487,6 +508,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'violet',
     attribution: MIT,
+    githubFile: 'marketing/marketing-social-media-strategist.md',
   },
 
   // ── Support ──
@@ -511,6 +533,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'blue',
     attribution: MIT,
+    githubFile: 'support/support-analytics-reporter.md',
   },
   {
     id: 'infrastructure-maintainer',
@@ -533,6 +556,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'gray',
     attribution: MIT,
+    githubFile: 'support/support-infrastructure-maintainer.md',
   },
   {
     id: 'executive-summary-generator',
@@ -555,6 +579,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 5 },
     color: 'dark',
     attribution: MIT,
+    githubFile: 'support/support-executive-summary-generator.md',
   },
 
   // ── Specialized ──
@@ -579,6 +604,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 15, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'cyan',
     attribution: MIT,
+    githubFile: 'specialized/specialized-agents-orchestrator.md',
   },
   {
     id: 'data-analytics-reporter',
@@ -601,6 +627,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'yellow',
     attribution: MIT,
+    githubFile: 'specialized/specialized-data-analytics-reporter.md',
   },
   {
     id: 'lsp-index-engineer',
@@ -623,6 +650,7 @@ Rules:
     suggestedModelConfig: { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
     color: 'lime',
     attribution: MIT,
+    githubFile: 'specialized/specialized-lsp-index-engineer.md',
   },
 ];
 

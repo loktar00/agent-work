@@ -9,10 +9,15 @@ import {
   JsonInput,
   ActionIcon,
   Tooltip,
+  Switch,
+  Divider,
+  PasswordInput,
+  Alert,
 } from '@mantine/core';
-import { IconFileDownload } from '@tabler/icons-react';
+import { IconFileDownload, IconPlugConnected } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
-import type { Agent } from '@agent-board/shared';
+import type { Agent, LLMSettings } from '@agent-board/shared';
+import { api } from '../../api/client';
 
 const RUNNER_CONFIGS: Record<string, Record<string, unknown>> = {
   'claude-code': { model: 'sonnet', maxTurns: 10, allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'] },
@@ -34,6 +39,13 @@ export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps)
   const [persona, setPersona] = useState('');
   const [runnerId, setRunnerId] = useState<string | null>(null);
   const [modelConfig, setModelConfig] = useState('{}');
+  const [useGlobalLLM, setUseGlobalLLM] = useState(true);
+  const [llmProvider, setLlmProvider] = useState<string>('openai');
+  const [llmBaseUrl, setLlmBaseUrl] = useState('');
+  const [llmApiKey, setLlmApiKey] = useState('');
+  const [llmModel, setLlmModel] = useState('');
+  const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState('');
 
   useEffect(() => {
     if (agent) {
@@ -44,6 +56,21 @@ export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps)
       setModelConfig(
         agent.modelConfig ? JSON.stringify(agent.modelConfig, null, 2) : '{}',
       );
+      if (agent.llmConfig) {
+        setUseGlobalLLM(false);
+        setLlmProvider(agent.llmConfig.provider);
+        setLlmBaseUrl(agent.llmConfig.baseUrl);
+        setLlmApiKey(agent.llmConfig.apiKey);
+        setLlmModel(agent.llmConfig.model);
+      } else {
+        setUseGlobalLLM(true);
+        setLlmProvider('openai');
+        setLlmBaseUrl('');
+        setLlmApiKey('');
+        setLlmModel('');
+      }
+      setTestStatus('idle');
+      setTestMessage('');
     }
   }, [agent]);
 
@@ -63,13 +90,40 @@ export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps)
       // keep null
     }
 
+    const llmConfig: LLMSettings | null = useGlobalLLM
+      ? null
+      : {
+          provider: llmProvider as 'openai' | 'anthropic',
+          baseUrl: llmBaseUrl,
+          apiKey: llmApiKey,
+          model: llmModel,
+        };
+
     onSave({
       name,
       role,
       persona: persona || null,
       runnerId,
       modelConfig: parsedConfig,
+      llmConfig,
     });
+  };
+
+  const handleTestConnection = async () => {
+    if (!agent) return;
+    setTestStatus('loading');
+    setTestMessage('');
+    try {
+      const result = await api.post<{ success: boolean; message: string }>(
+        `/api/agents/${agent.id}/llm-test`,
+        {},
+      );
+      setTestStatus('success');
+      setTestMessage(result.message);
+    } catch (err: any) {
+      setTestStatus('error');
+      setTestMessage(err?.message ?? 'Connection failed');
+    }
   };
 
   const loadSampleConfig = () => {
@@ -136,6 +190,74 @@ export function AgentDetailForm({ agent, onSave, saving }: AgentDetailFormProps)
           </ActionIcon>
         </Tooltip>
       </Group>
+
+      <Divider my="sm" />
+      <Text size="lg" fw={600}>
+        LLM Configuration
+      </Text>
+
+      <Switch
+        label="Use Global Settings"
+        checked={useGlobalLLM}
+        onChange={(e) => setUseGlobalLLM(e.currentTarget.checked)}
+      />
+
+      <Select
+        label="Provider"
+        value={llmProvider}
+        onChange={(v) => setLlmProvider(v ?? 'openai')}
+        data={[
+          { value: 'openai', label: 'OpenAI-Compatible' },
+          { value: 'anthropic', label: 'Anthropic' },
+        ]}
+        disabled={useGlobalLLM}
+      />
+      <TextInput
+        label="Base URL"
+        value={llmBaseUrl}
+        onChange={(e) => setLlmBaseUrl(e.currentTarget.value)}
+        placeholder={llmProvider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}
+        disabled={useGlobalLLM}
+      />
+      <PasswordInput
+        label="API Key"
+        value={llmApiKey}
+        onChange={(e) => setLlmApiKey(e.currentTarget.value)}
+        placeholder="sk-..."
+        disabled={useGlobalLLM}
+      />
+      <TextInput
+        label="Model"
+        value={llmModel}
+        onChange={(e) => setLlmModel(e.currentTarget.value)}
+        placeholder="claude-sonnet-4-20250514"
+        disabled={useGlobalLLM}
+      />
+
+      <Group gap="xs">
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconPlugConnected size={14} />}
+          onClick={handleTestConnection}
+          loading={testStatus === 'loading'}
+          disabled={!agent}
+        >
+          Test Connection
+        </Button>
+        {testStatus === 'success' && (
+          <Alert color="green" p="xs" style={{ flex: 1 }}>
+            <Text size="xs">{testMessage}</Text>
+          </Alert>
+        )}
+        {testStatus === 'error' && (
+          <Alert color="red" p="xs" style={{ flex: 1 }}>
+            <Text size="xs">{testMessage}</Text>
+          </Alert>
+        )}
+      </Group>
+
+      <Divider my="sm" />
 
       <Group justify="flex-end">
         <Button onClick={handleSave} loading={saving}>

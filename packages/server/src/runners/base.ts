@@ -18,6 +18,13 @@ export abstract class BaseRunnerAdapter implements RunnerAdapter {
     const events = new EventEmitter();
     const { command, args, env, cwd } = this.buildCommand(input);
 
+    // Default board callback env vars for all adapters
+    const boardEnv: Record<string, string> = {
+      AWALL_API_URL: input.boardApiUrl,
+      AWALL_BOARD_ID: input.boardId,
+      AWALL_CARD_ID: input.cardId,
+    };
+
     let proc: ChildProcess | null = null;
     let cancelled = false;
     let stdoutBuf = "";
@@ -26,7 +33,7 @@ export abstract class BaseRunnerAdapter implements RunnerAdapter {
     const promise = new Promise<RunResult>((resolve) => {
       proc = spawn(command, args, {
         cwd: cwd ?? input.projectDir,
-        env: { ...process.env, ...env },
+        env: { ...process.env, ...boardEnv, ...env },
         stdio: ["pipe", "pipe", "pipe"],
         shell: true,
       });

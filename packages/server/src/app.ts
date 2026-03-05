@@ -9,7 +9,6 @@ import { boardService } from "./services/boards.js";
 import { columnService } from "./services/columns.js";
 import { cardService } from "./services/cards.js";
 import { subtaskService } from "./services/subtasks.js";
-import { acceptanceCriteriaService } from "./services/acceptance-criteria.js";
 import { agentService } from "./services/agents.js";
 import { skillService } from "./services/skills.js";
 import { messageService } from "./services/messages.js";
@@ -26,7 +25,6 @@ import boardRoutes from "./routes/boards.js";
 import columnRoutes from "./routes/columns.js";
 import cardRoutes from "./routes/cards.js";
 import subtaskRoutes from "./routes/subtasks.js";
-import acRoutes from "./routes/acceptance-criteria.js";
 import agentRoutes from "./routes/agents.js";
 import skillRoutes from "./routes/skills.js";
 import messageRoutes from "./routes/messages.js";
@@ -36,6 +34,14 @@ import secretRoutes from "./routes/secrets.js";
 import leaseRoutes from "./routes/leases.js";
 import runRoutes from "./routes/runs.js";
 import eventRoutes from "./routes/events.js";
+import agentPersonaRoutes from "./routes/agent-personas.js";
+import orchestratorRoutes from "./routes/orchestrator.js";
+import settingsRoutes from "./routes/settings.js";
+import toolRoutes from "./routes/tools.js";
+import { orchestratorService } from "./services/orchestrator.js";
+import { settingsService } from "./services/settings.js";
+import { multiAgentChatService } from "./services/multi-agent-chat.js";
+import { LLMRunnerAdapter } from "./runners/llm.js";
 import fastifyStatic from "@fastify/static";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
@@ -50,7 +56,6 @@ declare module "fastify" {
       columns: ReturnType<typeof columnService>;
       cards: ReturnType<typeof cardService>;
       subtasks: ReturnType<typeof subtaskService>;
-      acceptanceCriteria: ReturnType<typeof acceptanceCriteriaService>;
       agents: ReturnType<typeof agentService>;
       skills: ReturnType<typeof skillService>;
       messages: ReturnType<typeof messageService>;
@@ -65,6 +70,9 @@ declare module "fastify" {
     runQueue: RunQueue;
     runnerRegistry: RunnerRegistry;
     trigger: ReturnType<typeof columnEntryTrigger>;
+    settingsService: ReturnType<typeof settingsService>;
+    orchestrator: ReturnType<typeof orchestratorService>;
+    multiAgentChat: ReturnType<typeof multiAgentChatService>;
   }
 }
 
@@ -98,7 +106,6 @@ export async function buildApp(config: AppConfig) {
     columns: columnService(db),
     cards: cardService(db),
     subtasks: subtaskService(db),
-    acceptanceCriteria: acceptanceCriteriaService(db),
     agents: agentService(db),
     skills: skillService(db),
     messages: messageService(db),
@@ -113,15 +120,38 @@ export async function buildApp(config: AppConfig) {
   app.decorate("services", services);
   app.decorate("config", config);
 
+  // Settings service
+  const settingsSvc = settingsService(db);
+  app.decorate("settingsService", settingsSvc);
+
+  // Re-create agents service with settings dependency for getEffectiveLLMSettings
+  services.agents = agentService(db, settingsSvc);
+
+  // Orchestrator (reads LLM settings from DB at call time)
+  const orchestrator = orchestratorService(services, settingsSvc);
+  app.decorate("orchestrator", orchestrator);
+
+  // Multi-agent chat service
+  const multiChat = multiAgentChatService(services, settingsSvc, app.sse.emitter);
+  app.decorate("multiAgentChat", multiChat);
+
   // Runner system
+  const boardApiUrl = `http://${config.server.host === "0.0.0.0" ? "localhost" : config.server.host}:${config.server.port}`;
   const runnerRegistry = new RunnerRegistry(config.runners);
   const runQueue = new RunQueue({
     db,
     registry: runnerRegistry,
     sseEmitter: app.sse.emitter,
     maxConcurrency: 2,
+    boardApiUrl,
   });
   const trigger = columnEntryTrigger(db, runQueue);
+
+  // Register LLM runner adapter
+  runnerRegistry.register("llm", new LLMRunnerAdapter({
+    services,
+    settingsSvc,
+  }));
 
   app.decorate("runnerRegistry", runnerRegistry);
   app.decorate("runQueue", runQueue);
@@ -141,7 +171,6 @@ export async function buildApp(config: AppConfig) {
   await app.register(columnRoutes, { prefix: "/api" });
   await app.register(cardRoutes, { prefix: "/api" });
   await app.register(subtaskRoutes, { prefix: "/api" });
-  await app.register(acRoutes, { prefix: "/api" });
   await app.register(agentRoutes, { prefix: "/api/agents" });
   await app.register(skillRoutes, { prefix: "/api/skills" });
   await app.register(messageRoutes, { prefix: "/api" });
@@ -151,6 +180,10 @@ export async function buildApp(config: AppConfig) {
   await app.register(leaseRoutes, { prefix: "/api" });
   await app.register(runRoutes, { prefix: "/api" });
   await app.register(eventRoutes, { prefix: "/api" });
+  await app.register(agentPersonaRoutes, { prefix: "/api" });
+  await app.register(orchestratorRoutes, { prefix: "/api" });
+  await app.register(settingsRoutes, { prefix: "/api" });
+  await app.register(toolRoutes, { prefix: "/api" });
 
   // Serve static frontend in production
   const webDistPath = resolve(

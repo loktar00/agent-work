@@ -26,6 +26,7 @@ const mockAgents: Agent[] = [
     persona: null,
     runnerId: null,
     modelConfig: null,
+    llmConfig: null,
     toolPermissions: null,
     createdAt: "2025-01-01T00:00:00Z",
   },
@@ -49,7 +50,7 @@ describe("CardDetailDrawer", () => {
     expect(screen.getByDisplayValue("Implement user auth")).toBeInTheDocument();
   });
 
-  it("shows tabs for subtasks, criteria, artifacts, discussion, runs", () => {
+  it("shows accordion sections for subtasks, artifacts, discussion, runs", () => {
     renderWithProviders(
       <CardDetailDrawer
         card={mockCard}
@@ -64,7 +65,6 @@ describe("CardDetailDrawer", () => {
     );
 
     expect(screen.getByText("Subtasks")).toBeInTheDocument();
-    expect(screen.getByText("Criteria")).toBeInTheDocument();
     expect(screen.getByText("Artifacts")).toBeInTheDocument();
     expect(screen.getByText("Discussion")).toBeInTheDocument();
     expect(screen.getByText("Runs")).toBeInTheDocument();

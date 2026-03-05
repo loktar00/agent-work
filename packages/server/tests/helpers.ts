@@ -9,7 +9,6 @@ import { boardService } from "../src/services/boards.js";
 import { columnService } from "../src/services/columns.js";
 import { cardService } from "../src/services/cards.js";
 import { subtaskService } from "../src/services/subtasks.js";
-import { acceptanceCriteriaService } from "../src/services/acceptance-criteria.js";
 import { agentService } from "../src/services/agents.js";
 import { skillService } from "../src/services/skills.js";
 import { messageService } from "../src/services/messages.js";
@@ -26,7 +25,6 @@ import boardRoutes from "../src/routes/boards.js";
 import columnRoutes from "../src/routes/columns.js";
 import cardRoutes from "../src/routes/cards.js";
 import subtaskRoutes from "../src/routes/subtasks.js";
-import acRoutes from "../src/routes/acceptance-criteria.js";
 import agentRoutes from "../src/routes/agents.js";
 import skillRoutes from "../src/routes/skills.js";
 import messageRoutes from "../src/routes/messages.js";
@@ -66,6 +64,7 @@ const CREATE_TABLES = `
     persona TEXT,
     runner_id TEXT,
     model_config TEXT,
+    llm_config TEXT,
     tool_permissions TEXT,
     created_at TEXT NOT NULL
   );
@@ -88,7 +87,9 @@ const CREATE_TABLES = `
     id TEXT PRIMARY KEY,
     card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
+    description TEXT,
     completed INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'open',
     position INTEGER NOT NULL DEFAULT 0
   );
 
@@ -197,6 +198,12 @@ const CREATE_TABLES = `
   );
   CREATE INDEX IF NOT EXISTS leases_card_id_idx ON leases(card_id);
   CREATE INDEX IF NOT EXISTS leases_expires_at_idx ON leases(expires_at);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `;
 
 export function createTestDb() {
@@ -228,7 +235,6 @@ export async function createTestApp() {
     columns: columnService(db),
     cards: cardService(db),
     subtasks: subtaskService(db),
-    acceptanceCriteria: acceptanceCriteriaService(db),
     agents: agentService(db),
     skills: skillService(db),
     messages: messageService(db),
@@ -273,7 +279,6 @@ export async function createTestApp() {
   await app.register(columnRoutes, { prefix: "/api" });
   await app.register(cardRoutes, { prefix: "/api" });
   await app.register(subtaskRoutes, { prefix: "/api" });
-  await app.register(acRoutes, { prefix: "/api" });
   await app.register(agentRoutes, { prefix: "/api/agents" });
   await app.register(skillRoutes, { prefix: "/api/skills" });
   await app.register(messageRoutes, { prefix: "/api" });

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { createAgentSchema, updateAgentSchema } from "@agent-board/shared";
+import { callLLM } from "../llm/provider.js";
 import { z } from "zod";
 
 const agentRoutes: FastifyPluginAsync = async (fastify) => {
@@ -58,6 +59,27 @@ const agentRoutes: FastifyPluginAsync = async (fastify) => {
     async (req) => {
       svc.detachSkill(req.params.id, req.params.skillId);
       return { success: true };
+    },
+  );
+
+  // Test LLM connection for an agent
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/llm-test",
+    async (req, reply) => {
+      const llmSettings = svc.getEffectiveLLMSettings(req.params.id);
+      if (!llmSettings) {
+        return reply
+          .code(400)
+          .send({ error: "No LLM settings configured for this agent or globally." });
+      }
+      try {
+        const response = await callLLM(llmSettings, [
+          { role: "user", content: "Say hello in one sentence." },
+        ]);
+        return { success: true, message: response.content ?? "OK" };
+      } catch (err: any) {
+        return reply.code(500).send({ error: err.message ?? "LLM test failed" });
+      }
     },
   );
 };
