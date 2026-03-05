@@ -5,18 +5,21 @@ import {
   Modal,
   TextInput,
   Textarea,
+  Select,
+  NumberInput,
   Button,
   Stack,
   Title,
   Group,
   Anchor,
+  Text,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useBoard } from '../api/hooks/useBoards';
-import { useColumns, useCreateColumn } from '../api/hooks/useColumns';
+import { useColumns, useCreateColumn, useUpdateColumn, useDeleteColumn } from '../api/hooks/useColumns';
 import { useCards, useMoveCard, useCreateCard } from '../api/hooks/useCards';
 import { useAgents } from '../api/hooks/useAgents';
 import { useActiveRuns } from '../api/hooks/useRuns';
@@ -43,6 +46,8 @@ export default function BoardPage() {
   const { data: agents = [] } = useAgents() as { data: Agent[] };
   const moveCard = useMoveCard(boardId ?? '');
   const createColumn = useCreateColumn(boardId ?? '');
+  const updateColumn = useUpdateColumn(boardId ?? '');
+  const deleteColumn = useDeleteColumn(boardId ?? '');
   const createCard = useCreateCard(boardId ?? '');
 
   const { data: activeRuns = [] } = useActiveRuns(boardId ?? '');
@@ -60,9 +65,18 @@ export default function BoardPage() {
 
   const activeCard = cards.find((c) => c.id === activeCardId) ?? null;
 
-  // Column modal state
+  // Column create modal state
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+
+  // Column edit modal state
+  const [editColumnId, setEditColumnId] = useState<string | null>(null);
+  const [editColumnName, setEditColumnName] = useState('');
+  const [editColumnAgentId, setEditColumnAgentId] = useState<string | null>(null);
+  const [editColumnWipLimit, setEditColumnWipLimit] = useState<number | string>('');
+
+  // Column delete confirm state
+  const [deleteColumnId, setDeleteColumnId] = useState<string | null>(null);
 
   // Card modal state
   const [cardModalOpen, setCardModalOpen] = useState(false);
@@ -114,6 +128,20 @@ export default function BoardPage() {
     setCardModalOpen(true);
   }, []);
 
+  const handleEditColumn = useCallback((columnId: string) => {
+    const col = columns.find((c) => c.id === columnId);
+    if (col) {
+      setEditColumnId(columnId);
+      setEditColumnName(col.name);
+      setEditColumnAgentId(col.agentId ?? null);
+      setEditColumnWipLimit(col.wipLimit ?? '');
+    }
+  }, [columns]);
+
+  const handleDeleteColumn = useCallback((columnId: string) => {
+    setDeleteColumnId(columnId);
+  }, []);
+
   if (boardLoading) {
     return (
       <Center h="80vh">
@@ -148,6 +176,8 @@ export default function BoardPage() {
         onAddColumn={handleAddColumn}
         onAddCard={handleAddCard}
         onRunClick={handleRunClick}
+        onEditColumn={handleEditColumn}
+        onDeleteColumn={handleDeleteColumn}
       />
 
       <CardDetailDrawer
@@ -277,6 +307,103 @@ export default function BoardPage() {
           >
             Create
           </Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={!!editColumnId}
+        onClose={() => setEditColumnId(null)}
+        title="Edit Column"
+        centered
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            value={editColumnName}
+            onChange={(e) => setEditColumnName(e.currentTarget.value)}
+          />
+          <Select
+            label="Assigned Agent"
+            value={editColumnAgentId}
+            onChange={setEditColumnAgentId}
+            data={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.role})` }))}
+            clearable
+            placeholder="No agent assigned"
+          />
+          <NumberInput
+            label="WIP Limit"
+            value={editColumnWipLimit}
+            onChange={setEditColumnWipLimit}
+            min={1}
+            placeholder="No limit"
+            allowDecimal={false}
+          />
+          <Button
+            onClick={() => {
+              if (editColumnId && editColumnName.trim()) {
+                updateColumn.mutate(
+                  {
+                    columnId: editColumnId,
+                    name: editColumnName.trim(),
+                    agentId: editColumnAgentId,
+                    wipLimit: typeof editColumnWipLimit === 'number' ? editColumnWipLimit : null,
+                  },
+                  {
+                    onSuccess: () => {
+                      notifications.show({
+                        title: 'Column updated',
+                        message: `"${editColumnName.trim()}" has been updated.`,
+                        color: 'green',
+                      });
+                      setEditColumnId(null);
+                    },
+                  },
+                );
+              }
+            }}
+            loading={updateColumn.isPending}
+          >
+            Save
+          </Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={!!deleteColumnId}
+        onClose={() => setDeleteColumnId(null)}
+        title="Delete Column"
+        centered
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to delete this column? All cards in this column will also be deleted. This cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setDeleteColumnId(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (deleteColumnId) {
+                  deleteColumn.mutate(deleteColumnId, {
+                    onSuccess: () => {
+                      notifications.show({
+                        title: 'Column deleted',
+                        message: 'The column has been removed.',
+                        color: 'red',
+                      });
+                      setDeleteColumnId(null);
+                    },
+                  });
+                }
+              }}
+              loading={deleteColumn.isPending}
+            >
+              Delete
+            </Button>
+          </Group>
         </Stack>
       </Modal>
 

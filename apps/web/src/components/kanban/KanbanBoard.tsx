@@ -28,6 +28,8 @@ interface KanbanBoardProps {
   onAddCard?: (columnId: string) => void;
   onAddColumn?: () => void;
   onRunClick?: (runId: string) => void;
+  onEditColumn?: (columnId: string) => void;
+  onDeleteColumn?: (columnId: string) => void;
 }
 
 export function KanbanBoard({
@@ -41,6 +43,8 @@ export function KanbanBoard({
   onAddCard,
   onAddColumn,
   onRunClick,
+  onEditColumn,
+  onDeleteColumn,
 }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
 
@@ -123,6 +127,8 @@ export function KanbanBoard({
               onCardClick={onCardClick}
               onAddCard={onAddCard}
               onRunClick={onRunClick}
+              onEditColumn={onEditColumn}
+              onDeleteColumn={onDeleteColumn}
             />
           ))}
         {onAddColumn && (

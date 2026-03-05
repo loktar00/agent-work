@@ -1,4 +1,5 @@
-import { Group, Text, Badge } from '@mantine/core';
+import { Group, Text, Badge, Menu, ActionIcon } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Column, Card as CardType, Subtask } from '@agent-board/shared';
@@ -24,6 +25,8 @@ interface KanbanColumnProps {
   onCardClick?: (cardId: string) => void;
   onAddCard?: (columnId: string) => void;
   onRunClick?: (runId: string) => void;
+  onEditColumn?: (columnId: string) => void;
+  onDeleteColumn?: (columnId: string) => void;
 }
 
 export function KanbanColumn({
@@ -35,6 +38,8 @@ export function KanbanColumn({
   onCardClick,
   onAddCard,
   onRunClick,
+  onEditColumn,
+  onDeleteColumn,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -74,6 +79,34 @@ export function KanbanColumn({
             <Badge size="xs" color="red" variant="filled">
               WIP
             </Badge>
+          )}
+          {(onEditColumn || onDeleteColumn) && (
+            <Menu shadow="md" width={160} position="bottom-end">
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="xs" color="gray">
+                  <IconDots size={14} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {onEditColumn && (
+                  <Menu.Item
+                    leftSection={<IconPencil size={14} />}
+                    onClick={() => onEditColumn(column.id)}
+                  >
+                    Edit Column
+                  </Menu.Item>
+                )}
+                {onDeleteColumn && (
+                  <Menu.Item
+                    leftSection={<IconTrash size={14} />}
+                    color="red"
+                    onClick={() => onDeleteColumn(column.id)}
+                  >
+                    Delete Column
+                  </Menu.Item>
+                )}
+              </Menu.Dropdown>
+            </Menu>
           )}
         </Group>
       </div>

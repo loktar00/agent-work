@@ -29,3 +29,25 @@ export function useCreateColumn(boardId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) }),
   });
 }
+
+export function useUpdateColumn(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ columnId, ...data }: { columnId: string; name?: string; agentId?: string | null; wipLimit?: number | null }) =>
+      api.patch(`/api/columns/${columnId}`, data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) }),
+  });
+}
+
+export function useDeleteColumn(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (columnId: string) =>
+      api.delete(`/api/columns/${columnId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.columns.byBoard(boardId) });
+      qc.invalidateQueries({ queryKey: queryKeys.cards.byBoard(boardId) });
+    },
+  });
+}
