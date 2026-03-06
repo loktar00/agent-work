@@ -112,13 +112,33 @@ function buildPrompt(run: ClaimedRun, serverApi: ServerAPI): string {
     parts.push(`## Recent Messages\n${JSON.stringify(run.context.recentMessages, null, 2)}\n`);
   }
 
+  // Board column/agent map — gives the agent awareness of the pipeline and teammates
+  if (run.columns?.length) {
+    const colLines = run.columns.map((c) => {
+      const agent = c.agentName ? `${c.agentName} (${c.agentRole ?? "agent"})` : "no agent";
+      return `- "${c.columnName}" [${c.columnId}] → ${agent}`;
+    });
+    parts.push(`## Board Pipeline\nColumns in order:\n${colLines.join("\n")}\n`);
+  }
+
   // Board callback API instructions
   const baseUrl = (serverApi as any).baseUrl as string;
   parts.push(`## Board API
-You can report progress back to the board:
+You can report progress and coordinate with other agents:
+
+### Report Progress
 - Post message: POST ${baseUrl}/api/messages {"boardId":"${run.boardId}","cardId":"${run.cardId}","authorType":"agent","authorId":"worker","content":"..."}
 - Complete subtask: POST ${baseUrl}/api/boards/${run.boardId}/tools/update_subtask {"input":{"cardId":"${run.cardId}","subtaskId":"...","completed":true}}
-- Move card: POST ${baseUrl}/api/boards/${run.boardId}/tools/move_card {"input":{"cardId":"${run.cardId}","columnId":"..."}}
+
+### Move Card Forward
+When your work is done, move the card to the next column to hand off to the next agent:
+- Move card: POST ${baseUrl}/api/boards/${run.boardId}/tools/move_card {"input":{"cardId":"${run.cardId}","columnId":"<target-column-id>"}}
+
+### Send Card Back
+If you find issues that a previous agent needs to fix, post a message explaining the problem, then move the card back to that agent's column. The previous agent will automatically receive your feedback in the message thread.
+- Post a message explaining what's wrong, then move the card back to the appropriate column.
+
+Use the column IDs from the Board Pipeline section above to choose the right target.
 `);
 
   parts.push(`## Task\n${run.prompt ?? "Complete the task described in the card."}\n`);

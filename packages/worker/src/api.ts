@@ -95,4 +95,12 @@ export interface ClaimedRun extends QueuedRun {
     recentMessages: unknown[];
     artifacts: unknown[];
   } | null;
+  columns: {
+    columnId: string;
+    columnName: string;
+    position: number;
+    agentId: string | null;
+    agentName: string | null;
+    agentRole: string | null;
+  }[] | null;
 }

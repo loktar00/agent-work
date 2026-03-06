@@ -128,6 +128,20 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
       const card = fastify.services.cards.getById(run.cardId);
       const cardContext = fastify.services.context.buildCardContext(run.cardId);
 
+      // Build column → agent map so the worker can tell agents about their teammates
+      const boardColumns = fastify.services.columns.listByBoard(run.boardId);
+      const columnAgentMap = boardColumns.map((col) => {
+        const colAgent = col.agentId ? fastify.services.agents.getById(col.agentId) : null;
+        return {
+          columnId: col.id,
+          columnName: col.name,
+          position: col.position,
+          agentId: col.agentId ?? null,
+          agentName: colAgent?.name ?? null,
+          agentRole: colAgent?.role ?? null,
+        };
+      });
+
       return {
         ...run,
         board: board ? { projectDir: board.projectDir, worktreeMode: board.worktreeMode } : null,
@@ -151,6 +165,7 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
               artifacts: cardContext.artifacts,
             }
           : null,
+        columns: columnAgentMap,
       };
     },
   );
