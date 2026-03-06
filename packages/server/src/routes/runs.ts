@@ -105,6 +105,72 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
       sseStream(reply, fastify.sse.emitter, `run:${req.params.id}`);
     },
   );
+
+  // ── Worker API ──────────────────────────────────────────────────
+  // Workers poll this to find available runs
+  fastify.get("/runs/queued", async (req) => {
+    const { boardId } = req.query as { boardId?: string };
+    return svc.listQueued(boardId);
+  });
+
+  // Worker claims a run — atomically transitions queued -> running
+  fastify.post<{ Params: { id: string } }>(
+    "/runs/:id/claim",
+    async (req, reply) => {
+      const { workerId } = (req.body as { workerId?: string }) ?? {};
+      const run = svc.claim(req.params.id, workerId ?? "default");
+      if (!run) return reply.code(409).send({ error: "Run already claimed or not found" });
+      fastify.sse.emit(`board:${run.boardId}`, "run:started", { runId: run.id });
+
+      // Build full run payload with agent config and context
+      const agent = fastify.services.agents.getById(run.agentId);
+      const board = fastify.services.boards.getById(run.boardId);
+      const card = fastify.services.cards.getById(run.cardId);
+      const cardContext = fastify.services.context.buildCardContext(run.cardId);
+
+      return {
+        ...run,
+        board: board ? { projectDir: board.projectDir, worktreeMode: board.worktreeMode } : null,
+        card: card ? { title: card.title, description: card.description } : null,
+        agentConfig: agent
+          ? {
+              name: agent.name,
+              role: agent.role,
+              persona: agent.persona,
+              runnerId: agent.runnerId,
+              modelConfig: agent.modelConfig ? JSON.parse(agent.modelConfig) : null,
+              llmConfig: agent.llmConfig ? JSON.parse(agent.llmConfig) : null,
+              toolPermissions: agent.toolPermissions ? JSON.parse(agent.toolPermissions) : null,
+            }
+          : null,
+        context: cardContext
+          ? {
+              card: cardContext.card,
+              subtasks: cardContext.subtasks,
+              recentMessages: cardContext.recentMessages,
+              artifacts: cardContext.artifacts,
+            }
+          : null,
+      };
+    },
+  );
+
+  // Worker reports completion
+  fastify.post<{ Params: { id: string } }>(
+    "/runs/:id/complete",
+    async (req, reply) => {
+      const { exitCode } = (req.body as { exitCode: number }) ?? {};
+      if (exitCode == null) return reply.code(400).send({ error: "exitCode required" });
+      const run = svc.complete(req.params.id, exitCode);
+      if (!run) return reply.code(404).send({ error: "Run not found" });
+      fastify.sse.emit(`board:${run.boardId}`, "run:finished", {
+        runId: run.id,
+        status: run.status,
+        exitCode,
+      });
+      return run;
+    },
+  );
 };
 
 export default runRoutes;

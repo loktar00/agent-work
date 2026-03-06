@@ -1,0 +1,20 @@
+{
+  "name": "@agent-board/worker",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "awall-worker": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@agent-board/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.13",
+    "tsx": "^4.7.0",
+    "typescript": "^5.5.0"
+  }
+}

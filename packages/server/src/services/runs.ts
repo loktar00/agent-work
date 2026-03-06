@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { runs, runEvents } from "@agent-board/db";
 import type { DB } from "@agent-board/db";
 import type { CreateRunInput, UpdateRunInput } from "@agent-board/shared";
@@ -70,6 +70,56 @@ export function runService(db: DB) {
         .select()
         .from(runEvents)
         .where(eq(runEvents.runId, runId))
+        .all();
+    },
+
+    /** List queued runs, optionally filtered by board */
+    listQueued(boardId?: string) {
+      if (boardId) {
+        return db
+          .select()
+          .from(runs)
+          .where(and(eq(runs.status, "queued"), eq(runs.boardId, boardId)))
+          .all();
+      }
+      return db
+        .select()
+        .from(runs)
+        .where(eq(runs.status, "queued"))
+        .all();
+    },
+
+    /** Atomically claim a queued run for a worker. Returns the run if claimed, null if already taken. */
+    claim(id: string, workerId: string) {
+      const run = db.select().from(runs).where(eq(runs.id, id)).get();
+      if (!run || run.status !== "queued") return null;
+      const ts = now();
+      db.update(runs)
+        .set({ status: "running", startedAt: ts })
+        .where(and(eq(runs.id, id), eq(runs.status, "queued")))
+        .run();
+      const updated = db.select().from(runs).where(eq(runs.id, id)).get();
+      if (updated?.status !== "running") return null; // race condition
+      return updated;
+    },
+
+    /** Mark a run as completed by a worker */
+    complete(id: string, exitCode: number) {
+      const status = exitCode === 0 ? "completed" : "failed";
+      const ts = now();
+      db.update(runs)
+        .set({ status, exitCode, finishedAt: ts })
+        .where(eq(runs.id, id))
+        .run();
+      return db.select().from(runs).where(eq(runs.id, id)).get();
+    },
+
+    /** List active (running) runs */
+    listActive() {
+      return db
+        .select()
+        .from(runs)
+        .where(inArray(runs.status, ["queued", "running"]))
         .all();
     },
   };
