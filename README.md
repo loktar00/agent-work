@@ -1,6 +1,63 @@
-# Agent Board
+# AWALL — Agent Wall
 
-A local-first Kanban board for multi-agent software delivery. AI runners (Claude Code, Droid, Codex, OpenCode) collaborate on cards through a REST API, while humans observe, approve, and manage work through a React UI.
+A kanban board for orchestrating heterogeneous AI agent teams. Different AI models from different providers work together on the same board — each with their own persona, tools, and LLM configuration — visible in real-time.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Remote Server                         │
+│                                                          │
+│  ┌──────────┐   ┌──────────────┐   ┌─────────────────┐  │
+│  │  Web UI   │   │  Fastify API  │   │  SQLite + SSE   │  │
+│  │  (React)  │◄──┤  Run Queue    │──►│  boards, cards  │  │
+│  │           │   │  Triggers     │   │  agents, runs   │  │
+│  └──────────┘   └──────┬───────┘   └─────────────────┘  │
+│                        │                                  │
+│              Worker API (HTTP)                            │
+│              GET  /runs/queued                            │
+│              POST /runs/:id/claim                         │
+│              POST /runs/:id/events                        │
+│              POST /runs/:id/complete                      │
+└────────────────────────┬────────────────────────────────┘
+                         │  polling
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│                    Local Machine                         │
+│                                                          │
+│  ┌───────────────────────────────────────────────────┐   │
+│  │                  awall-worker                      │   │
+│  │                                                    │   │
+│  │  1. Polls server for queued runs                   │   │
+│  │  2. Claims a run atomically                        │   │
+│  │  3. Spawns CLI tool in project directory            │   │
+│  │  4. Streams stdout/stderr back to server            │   │
+│  │  5. Reports exit code on completion                 │   │
+│  └──────────┬────────────────────────────────────────┘   │
+│             │ spawns                                      │
+│  ┌──────────┴──────────┐   ┌──────────────────────────┐  │
+│  │  CLI Harnesses      │   │  Project Directory        │  │
+│  │  · claude (Claude Code) │   │  /path/to/repo            │  │
+│  │  · codex  (OpenAI Codex)│   │                           │  │
+│  │  · aider  (Aider)      │   │  Git worktrees for        │  │
+│  │  · any custom CLI      │   │  concurrent agent tasks   │  │
+│  └─────────────────────┘   └──────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+The **server** is a coordination hub — it manages boards, cards, agents, and a run queue. It can live on any machine (remote VPS, home server, etc.).
+
+The **worker** runs locally on whatever machine has the code. It polls the server for queued runs, claims them, executes the appropriate CLI tool (Claude Code, Codex, Aider, etc.) in the project directory, and streams results back. Multiple workers can run on different machines, each pointing at different project directories.
+
+## How It Works
+
+1. **Create a board** with columns representing workflow stages (e.g., Planning → Development → Review → Done)
+2. **Configure the board** with a project directory path and optional worktree mode
+3. **Create agents** with personas, assigned CLI runners, and model configurations
+4. **Assign agents to columns** — when a card enters a column, the assigned agent's run is automatically queued
+5. **Start a worker** pointing at your local project directory — it picks up queued runs and executes them
+6. **Agents do real work** — they write code, run tests, and use the board callback API to post messages, complete subtasks, and move cards to the next column
+7. **Pipeline flow** — when an agent moves a card to the next column, the next agent auto-starts, creating an assembly line
 
 ## Quick Start
 
@@ -24,32 +81,123 @@ The app is available at `http://localhost:3000` with the frontend served as stat
 
 ```
 agent-board/
-  agent-board.yaml              # Configuration file
+  agent-board.yaml              # Server configuration
   drizzle.config.ts             # Drizzle ORM config
-  Dockerfile                    # Multi-stage build
-  docker-compose.yml            # Single-command startup
+  Dockerfile / docker-compose   # Container deployment
 
   packages/
-    shared/                     # @agent-board/shared — types, enums, Zod schemas
-    db/                         # @agent-board/db — Drizzle SQLite schema (15 tables)
-    server/                     # @agent-board/server — Fastify v5 REST API
+    shared/                     # @agent-board/shared — types, Zod schemas
+    db/                         # @agent-board/db — Drizzle SQLite schema
+    server/                     # @agent-board/server — Fastify API + run queue
+    worker/                     # @agent-board/worker — local execution daemon
 
   apps/
-    web/                        # @agent-board/web — React + Mantine v7 frontend
+    web/                        # @agent-board/web — React + Mantine UI
 ```
 
-## Scripts
+## Running the Worker
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start API server + Vite dev server in parallel |
-| `pnpm dev:server` | Start API server only |
-| `pnpm dev:web` | Start Vite dev server only |
-| `pnpm build` | Build all packages |
-| `pnpm test` | Run all test suites |
-| `pnpm db:generate` | Generate Drizzle migration |
-| `pnpm db:migrate` | Apply Drizzle migrations |
-| `pnpm db:studio` | Open Drizzle Studio |
+The worker runs on any machine that has the project source code and the CLI tools installed (e.g., `claude`, `codex`, `aider`).
+
+```bash
+# Build the worker
+pnpm --filter @agent-board/worker build
+
+# Run it
+node packages/worker/dist/cli.js \
+  --server http://your-server:3000 \
+  --dir /path/to/your/project
+
+# Or during development
+pnpm --filter @agent-board/worker dev -- \
+  --server http://your-server:3000 \
+  --dir /path/to/your/project
+```
+
+### Worker Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--server` | URL of the AWALL server | *required* |
+| `--dir` | Local project directory | *required* |
+| `--worker-id` | Unique worker identifier | `worker-<pid>` |
+| `--board-id` | Only process runs for this board | all boards |
+| `--poll-interval` | Milliseconds between polls | `5000` |
+
+### What happens when a run executes
+
+1. Worker polls `GET /api/runs/queued` and finds a queued run
+2. Worker calls `POST /api/runs/:id/claim` to atomically claim it
+3. Server returns the full run payload: agent config, persona, card context, subtasks, recent messages
+4. Worker builds a prompt with the agent's persona, card context, and board callback API instructions
+5. Worker spawns the CLI tool (e.g., `claude --print --model claude-sonnet-4-20250514 --max-turns 10`)
+6. Prompt is piped to stdin; stdout/stderr are streamed back to the server via `POST /api/runs/:id/events`
+7. On exit, worker reports the exit code via `POST /api/runs/:id/complete`
+
+## Agent Configuration
+
+Each agent has:
+
+- **Runner** — which CLI tool executes the work (`claude-code`, `codex`, `aider`, or a custom command)
+- **Persona** — a system prompt or large markdown document describing the agent's role and behavior (up to 100K chars)
+- **Model Config** — runner-specific settings passed as CLI flags:
+
+```json
+{
+  "model": "claude-sonnet-4-20250514",
+  "maxTurns": 10,
+  "allowedTools": ["Read", "Edit", "Write", "Bash", "Glob", "Grep"]
+}
+```
+
+For `claude-code`, this translates to:
+```
+claude --print --output-format text \
+  --model claude-sonnet-4-20250514 \
+  --max-turns 10 \
+  --allowedTools Read,Edit,Write,Bash,Glob,Grep
+```
+
+For `codex`:
+```
+codex --model <model> --approval-mode <approval>
+```
+
+For `aider`:
+```
+aider --yes --model <model>
+```
+
+### Preset Agents
+
+The UI includes preset agent templates (architect, frontend dev, backend dev, reviewer, etc.) with pre-written personas. Click a preset to create an agent with that configuration, or create a custom agent with your own persona document.
+
+## Git Worktree Support
+
+Boards can be configured with a **worktree mode** in Board Settings:
+
+- **none** — all runs execute in the base project directory
+- **auto** — each run gets its own git worktree branch, enabling concurrent agent tasks on the same repo without conflicts
+
+When worktree mode is `auto`, the worker creates a branch like `awall/<task-slug>-<card-id>` and a worktree directory alongside the repo. The worktree is cleaned up after the run completes. This lets multiple agents work on different cards simultaneously without stepping on each other.
+
+## Board Callback API
+
+Agents receive instructions in their prompt to call back to the server and report progress. These endpoints are available during a run:
+
+```bash
+# Post a message to the card's discussion thread
+POST /api/messages
+{"boardId":"...","cardId":"...","authorType":"agent","authorId":"worker","content":"Refactoring complete."}
+
+# Complete a subtask
+POST /api/boards/:boardId/tools/update_subtask
+{"input":{"cardId":"...","subtaskId":"...","completed":true}}
+
+# Move card to another column (triggers next agent in pipeline)
+POST /api/boards/:boardId/tools/move_card
+{"input":{"cardId":"...","columnId":"..."}}
+```
 
 ## Configuration
 
@@ -57,150 +205,86 @@ Configuration is loaded from `agent-board.yaml` in the project root.
 
 ```yaml
 server:
-  host: "0.0.0.0"              # Bind address (default: 0.0.0.0)
-  port: 3000                   # Listen port (default: 3000)
+  host: "0.0.0.0"
+  port: 3000
 
 database:
-  path: "./data/agent-board.db" # SQLite database path
+  path: "./data/agent-board.db"
 
 # Optional: restrict API access to specific CIDRs
 allowedCidrs: []
-#   - "10.0.0.0/8"
-#   - "192.168.0.0/16"
-#   - "172.16.0.0/12"
 
 # Directories to scan for agent skills
 skillsDirs: []
-#   - "/path/to/skills"
 
-# Runner configurations
+# Runner configurations (optional, for server-side execution)
 runners: {}
-#   claude-code:
-#     type: "claude-code"
-#     command: "claude"
-#   droid:
-#     type: "droid"
-#     command: "droid"
 ```
-
-### Configuration Reference
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `server.host` | string | `"0.0.0.0"` | Server bind address |
-| `server.port` | number | `3000` | Server listen port |
-| `database.path` | string | `"./data/agent-board.db"` | Path to SQLite database file |
-| `allowedCidrs` | string[] | `[]` | CIDR ranges allowed to access the API. Empty = no restriction |
-| `skillsDirs` | string[] | `[]` | Directories to scan for skill definitions |
-| `runners` | object | `{}` | Runner adapter configurations (see Runners section) |
-
-## Runners
-
-Agent Board supports four runner adapters that execute AI agents on cards:
-
-| Runner | Type | Description |
-|--------|------|-------------|
-| Claude Code | `claude-code` | Claude Code CLI runner |
-| Droid | `droid` | Droid runner |
-| Codex | `codex` | Codex runner |
-| OpenCode | `opencode` | OpenCode runner |
-
-Configure runners in `agent-board.yaml`:
-
-```yaml
-runners:
-  my-claude:
-    type: "claude-code"
-    command: "claude"        # CLI command to invoke
-    args: []                 # Optional CLI arguments
-    env: {}                  # Optional environment variables
-```
-
-When a card moves to a column with an assigned agent, a run is automatically enqueued using that agent's configured runner. The run queue processes up to 2 concurrent runs by default.
 
 ## Concepts
 
-- **Board** — A Kanban board containing columns and cards
-- **Column** — A stage in the workflow. Can be assigned an agent to auto-trigger runs when cards enter
-- **Card** — A unit of work with subtasks, acceptance criteria, artifacts, and a discussion thread
-- **Agent** — An AI runner configuration with a name, role, persona, and attached skills
-- **Run** — An execution of an agent against a card. Streams stdout/stderr events via SSE
-- **Lease** — A lock on a card preventing concurrent agent claims
-- **Skill** — A capability that can be attached to agents
-- **Secret** — An encrypted value stored with AES-256-GCM
-
-### Card Statuses
-
-`backlog` | `todo` | `in_progress` | `in_review` | `done` | `archived`
-
-### Card Priorities
-
-`low` | `medium` | `high` | `critical`
+| Concept | Description |
+|---------|-------------|
+| **Board** | A kanban board with columns, cards, a project directory, and worktree mode |
+| **Column** | A workflow stage. Can be assigned an agent to auto-trigger runs on card entry |
+| **Card** | A unit of work with subtasks, acceptance criteria, artifacts, and a discussion thread |
+| **Agent** | An AI configuration: name, role, persona, runner type, and model settings |
+| **Run** | An execution of an agent against a card. Streams stdout/stderr via SSE |
+| **Worker** | A local daemon that polls for runs and executes them on the machine with the code |
+| **Lease** | A lock on a card preventing concurrent agent claims |
+| **Skill** | A capability that can be attached to agents |
 
 ### Run Lifecycle
 
-`queued` &rarr; `running` &rarr; `completed` | `failed` | `cancelled`
+`queued` → `running` → `completed` | `failed` | `cancelled`
+
+When a card moves to a column with an assigned agent, a run is automatically created in `queued` status. A worker claims it, moving it to `running`. When the CLI tool exits, it becomes `completed` or `failed`.
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start API server + Vite dev server in parallel |
+| `pnpm build` | Build all packages |
+| `pnpm test` | Run all test suites |
+| `pnpm e2e` | Run Playwright end-to-end tests |
+| `pnpm db:generate` | Generate Drizzle migration |
+| `pnpm db:migrate` | Apply Drizzle migrations |
 
 ## API Reference
 
-All endpoints are prefixed with `/api`. The server returns JSON responses.
+All endpoints are prefixed with `/api`.
 
-### Health
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Server health check |
-
-### Boards
+### Boards & Columns
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/boards` | List all boards |
-| POST | `/api/boards` | Create board |
+| POST | `/api/boards` | Create board (with `projectDir`, `worktreeMode`) |
 | GET | `/api/boards/:id` | Get board |
 | PATCH | `/api/boards/:id` | Update board |
 | DELETE | `/api/boards/:id` | Delete board |
-
-### Columns
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
 | GET | `/api/boards/:boardId/columns` | List columns |
 | POST | `/api/boards/:boardId/columns` | Create column |
 | POST | `/api/boards/:boardId/columns/reorder` | Reorder columns |
-| GET | `/api/columns/:id` | Get column |
-| PATCH | `/api/columns/:id` | Update column |
+| PATCH | `/api/columns/:id` | Update column (name, agent, WIP limit) |
 | DELETE | `/api/columns/:id` | Delete column |
 
-### Cards
+### Cards & Subtasks
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/boards/:boardId/cards` | List cards |
 | POST | `/api/boards/:boardId/cards` | Create card |
 | GET | `/api/cards/:id` | Get card |
-| GET | `/api/cards/:id/context` | Get card with full context (subtasks, criteria, messages, artifacts) |
+| GET | `/api/cards/:id/context` | Get card with full context |
 | PATCH | `/api/cards/:id` | Update card |
-| POST | `/api/cards/:id/move` | Move card to column (triggers automation if target column has agent) |
+| POST | `/api/cards/:id/move` | Move card to column (triggers agent) |
 | DELETE | `/api/cards/:id` | Delete card |
-
-### Subtasks
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
 | GET | `/api/cards/:cardId/subtasks` | List subtasks |
 | POST | `/api/cards/:cardId/subtasks` | Create subtask |
 | PATCH | `/api/subtasks/:id` | Update subtask |
 | DELETE | `/api/subtasks/:id` | Delete subtask |
-
-### Acceptance Criteria
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cards/:cardId/acceptance-criteria` | List criteria |
-| POST | `/api/cards/:cardId/acceptance-criteria` | Create criterion |
-| PATCH | `/api/acceptance-criteria/:id` | Update criterion |
-| DELETE | `/api/acceptance-criteria/:id` | Delete criterion |
 
 ### Agents
 
@@ -211,156 +295,51 @@ All endpoints are prefixed with `/api`. The server returns JSON responses.
 | GET | `/api/agents/:id` | Get agent |
 | PATCH | `/api/agents/:id` | Update agent |
 | DELETE | `/api/agents/:id` | Delete agent |
-| GET | `/api/agents/:id/skills` | List agent's skills |
-| POST | `/api/agents/:id/skills` | Attach skill |
-| DELETE | `/api/agents/:id/skills/:skillId` | Detach skill |
 
-### Skills
+### Runs (Worker API)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/skills` | List skills |
-| POST | `/api/skills` | Create skill |
-| GET | `/api/skills/:id` | Get skill |
-| PATCH | `/api/skills/:id` | Update skill |
-| DELETE | `/api/skills/:id` | Delete skill |
-| POST | `/api/skills/scan` | Scan configured directories for skills |
+| GET | `/api/runs/queued` | Poll for queued runs (worker) |
+| POST | `/api/runs/:id/claim` | Claim a run atomically (worker) |
+| POST | `/api/runs/:id/events` | Stream event data back (worker) |
+| POST | `/api/runs/:id/complete` | Report run completion (worker) |
+| GET | `/api/runs/:id/stream` | SSE stream of run events (UI) |
+| POST | `/api/runs` | Manually enqueue a run |
+| POST | `/api/runs/:id/cancel` | Cancel a run |
 
-### Messages
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cards/:cardId/messages?limit=50` | List card thread messages |
-| GET | `/api/boards/:boardId/messages?limit=50` | List project thread messages |
-| POST | `/api/messages` | Create message (set `cardId` for card thread, omit for board thread) |
-
-### Artifacts
+### Messages & Artifacts
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/cards/:cardId/messages` | Card thread messages |
+| GET | `/api/boards/:boardId/messages` | Board thread messages |
+| POST | `/api/messages` | Post message (card or board thread) |
 | GET | `/api/cards/:cardId/artifacts` | List artifacts |
-| GET | `/api/artifacts/:id` | Get artifact |
 | POST | `/api/artifacts` | Create artifact |
-| DELETE | `/api/artifacts/:id` | Delete artifact |
-
-Artifact types: `log` | `file` | `url` | `test_result` | `diff`
-
-### Runs
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cards/:cardId/runs` | List runs for card |
-| GET | `/api/boards/:boardId/runs` | List runs for board |
-| GET | `/api/runs/:id` | Get run |
-| POST | `/api/runs` | Create and enqueue run |
-| PATCH | `/api/runs/:id` | Update run |
-| POST | `/api/runs/:id/cancel` | Cancel run |
-| GET | `/api/runs/:id/events` | List run events |
-| POST | `/api/runs/:id/events` | Add run event |
-| GET | `/api/runs/:id/stream` | SSE stream of run events |
-| GET | `/api/runners` | List available runners |
-
-### Leases
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cards/:cardId/lease` | Get active lease for card |
-| POST | `/api/leases/claim` | Claim lease on card (409 if already claimed) |
-| POST | `/api/leases/:id/renew` | Renew lease |
-| POST | `/api/leases/:id/release` | Release lease |
-
-### Secrets
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/secrets` | List secrets (names only, no values) |
-| POST | `/api/secrets` | Create secret (encrypted with AES-256-GCM) |
-| DELETE | `/api/secrets/:id` | Delete secret |
-
-### Audit Log
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/boards/:boardId/audit?limit=100` | List audit entries |
 
 ### SSE Streams
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/events/boards` | Global board-level events |
 | `/api/boards/:boardId/events` | Board-specific events |
 | `/api/boards/:boardId/feed` | Board activity feed |
 | `/api/cards/:cardId/events` | Card-specific events |
 | `/api/runs/:id/stream` | Run stdout/stderr stream |
 
-## Frontend
-
-The web UI is built with React, Mantine v7, and a dark hacker aesthetic (hot pink primary, matrix green secondary).
-
-### Pages
-
-| Route | Description |
-|-------|-------------|
-| `/boards` | Board list with create modal |
-| `/boards/:boardId` | Kanban board with drag-and-drop columns and cards |
-| `/boards/:boardId/cards/:cardId` | Board with card detail drawer open |
-| `/boards/:boardId/approve/:cardId` | Human approval page for a card |
-| `/boards/:boardId/thread` | Project-level discussion thread |
-| `/agents` | Agent management (list + detail form) |
-| `/activity` | Full-page activity feed |
-
-### Key Features
-
-- **Drag and drop** — Move cards between columns with @dnd-kit
-- **Card detail drawer** — Subtasks, acceptance criteria, artifacts, discussion thread, run history
-- **Real-time updates** — SSE-powered live feed of board activity
-- **Agent management** — Configure agents with personas, runners, skills, and tool permissions
-- **Approval workflow** — Review completion checklists, acceptance criteria, diffs, and test results
-
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| API framework | Fastify v5 |
+| API | Fastify v5 |
 | Database | SQLite (WAL mode) via Drizzle ORM |
-| Frontend | React + Mantine v7 + Vite |
-| State management | React Query (server state) + Zustand (UI state) |
-| Drag and drop | @dnd-kit |
+| Frontend | React 19 + Mantine v7 + Vite |
+| State | React Query (server) + Zustand (UI) |
+| Drag & drop | @dnd-kit |
 | Real-time | Server-Sent Events (SSE) |
-| Testing | Vitest + React Testing Library |
+| Testing | Vitest + React Testing Library + Playwright |
+| Worker | Node.js CLI daemon polling over HTTP |
 | Package manager | pnpm workspaces |
-| Containerization | Docker (multi-stage build) |
-
-## Testing
-
-```bash
-pnpm test
-```
-
-Runs 86 tests across two suites:
-
-- **Server** (12 files, 62 tests) — Board/column/card CRUD, card moves, claim/lease lifecycle, run queue, column-entry triggers, SSE streaming, audit log, secrets encryption, messages, subtasks/acceptance criteria, E2E smoke test
-- **Web** (6 files, 24 tests) — KanbanBoard, KanbanCard, CardDetailDrawer, AgentList, AgentDetailForm, ActivityFeedPage
-
-## Docker
-
-The Dockerfile uses a multi-stage build:
-
-1. **deps** — Install pnpm dependencies
-2. **build** — Compile all TypeScript packages and build the Vite frontend
-3. **runtime** — Slim Node 22 Alpine image with only production artifacts
-
-```bash
-# Build and run
-docker compose up --build
-
-# Custom port
-PORT=8080 docker compose up --build
-```
-
-The `docker-compose.yml` mounts two volumes:
-- `./data` &rarr; `/app/data` — SQLite database persistence
-- `./agent-board.yaml` &rarr; `/app/agent-board.yaml` — Configuration file
 
 ## License
 
