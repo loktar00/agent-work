@@ -36,6 +36,13 @@
       "when": 1772858542563,
       "tag": "0004_add_board_project_dir",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772944942563,
+      "tag": "0005_add_board_documents",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { subtaskService } from "./subtasks.js";
 import { messageService } from "./messages.js";
 import { artifactService } from "./artifacts.js";
 import { agentService } from "./agents.js";
+import { documentService } from "./documents.js";
 
 export function contextBuilder(db: DB) {
   const cards = cardService(db);
@@ -11,6 +12,7 @@ export function contextBuilder(db: DB) {
   const msgs = messageService(db);
   const arts = artifactService(db);
   const agents = agentService(db);
+  const docs = documentService(db);
 
   return {
     buildCardContext(cardId: string, messageLimit = 20) {
@@ -40,6 +42,10 @@ export function contextBuilder(db: DB) {
         recentMessages,
         artifacts,
       };
+    },
+
+    buildBoardDocumentContext(boardId: string) {
+      return docs.listByBoard(boardId);
     },
   };
 }

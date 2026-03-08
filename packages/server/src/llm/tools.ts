@@ -209,4 +209,30 @@ export const boardTools: ToolDef[] = [
       required: ["boardId"],
     },
   },
+  {
+    name: "read_project_doc",
+    description: "Read the project document for this board — returns all sections with their content",
+    parameters: {
+      type: "object",
+      properties: {
+        boardId: { type: "string", description: "Board ID" },
+      },
+      required: ["boardId"],
+    },
+  },
+  {
+    name: "update_project_doc_section",
+    description: "Create or update a section of the project document. If the section key already exists, it updates; otherwise it creates a new section.",
+    parameters: {
+      type: "object",
+      properties: {
+        boardId: { type: "string", description: "Board ID" },
+        section: { type: "string", description: "Section key (e.g. 'architecture_decisions', 'completed_features')" },
+        title: { type: "string", description: "Display title for the section" },
+        content: { type: "string", description: "Markdown content for the section" },
+        updatedBy: { type: "string", description: "Name of the agent updating this section" },
+      },
+      required: ["boardId", "section", "content"],
+    },
+  },
 ];

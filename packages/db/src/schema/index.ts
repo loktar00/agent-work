@@ -8,3 +8,4 @@ export { auditLog } from "./audit.ts";
 export { secrets } from "./secrets.ts";
 export { leases } from "./leases.ts";
 export { settings } from "./settings.ts";
+export { boardDocuments } from "./documents.ts";

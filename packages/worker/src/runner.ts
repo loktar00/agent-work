@@ -121,6 +121,14 @@ function buildPrompt(run: ClaimedRun, serverApi: ServerAPI): string {
     parts.push(`## Board Pipeline\nColumns in order:\n${colLines.join("\n")}\n`);
   }
 
+  // Project document — shared context all agents can read and update
+  if (run.projectDoc?.length) {
+    const docSections = run.projectDoc.map((doc: { title: string; content: string | null }) => {
+      return `### ${doc.title}\n${doc.content ?? "(empty)"}`;
+    });
+    parts.push(`## Project Document\n${docSections.join("\n\n")}\n`);
+  }
+
   // Board callback API instructions
   const baseUrl = (serverApi as any).baseUrl as string;
   parts.push(`## Board API

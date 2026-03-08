@@ -103,4 +103,13 @@ export interface ClaimedRun extends QueuedRun {
     agentName: string | null;
     agentRole: string | null;
   }[] | null;
+  projectDoc: {
+    id: string;
+    section: string;
+    title: string;
+    content: string | null;
+    updatedBy: string | null;
+    updatedAt: string;
+    position: number;
+  }[] | null;
 }

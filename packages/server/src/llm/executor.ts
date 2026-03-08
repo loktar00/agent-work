@@ -4,6 +4,7 @@ import type { cardService } from "../services/cards.js";
 import type { subtaskService } from "../services/subtasks.js";
 import type { agentService } from "../services/agents.js";
 import type { messageService } from "../services/messages.js";
+import type { documentService } from "../services/documents.js";
 
 export interface ExecutorServices {
   boards: ReturnType<typeof boardService>;
@@ -12,6 +13,7 @@ export interface ExecutorServices {
   subtasks: ReturnType<typeof subtaskService>;
   agents: ReturnType<typeof agentService>;
   messages?: ReturnType<typeof messageService>;
+  documents?: ReturnType<typeof documentService>;
 }
 
 export function executeTool(
@@ -171,6 +173,37 @@ export function executeTool(
         agentName: col.agentId ? agentMap.get(col.agentId)?.name ?? null : null,
         agentRole: col.agentId ? agentMap.get(col.agentId)?.role ?? null : null,
       }));
+    }
+
+    case "read_project_doc": {
+      if (!services.documents) return { error: "Document service not available" };
+      return services.documents.listByBoard(input.boardId as string);
+    }
+
+    case "update_project_doc_section": {
+      if (!services.documents) return { error: "Document service not available" };
+      const boardId = input.boardId as string;
+      const section = input.section as string;
+      const content = input.content as string;
+      const title = (input.title as string) ?? section.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const updatedBy = (input.updatedBy as string) ?? null;
+
+      // Upsert: find existing section, update if exists, create if not
+      const existing = services.documents.getByBoardAndSection(boardId, section);
+      if (existing) {
+        return services.documents.update(existing.id, { content, title, updatedBy });
+      }
+      // Find max position for ordering
+      const allDocs = services.documents.listByBoard(boardId);
+      const maxPos = allDocs.length > 0 ? Math.max(...allDocs.map((d) => d.position)) + 1 : 0;
+      return services.documents.create({
+        boardId,
+        section,
+        title,
+        content,
+        updatedBy,
+        position: maxPos,
+      });
     }
 
     default:

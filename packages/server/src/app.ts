@@ -18,6 +18,7 @@ import { secretService } from "./services/secrets.js";
 import { leaseService } from "./services/leases.js";
 import { runService } from "./services/runs.js";
 import { contextBuilder } from "./services/context.js";
+import { documentService } from "./services/documents.js";
 import { RunnerRegistry } from "./runners/registry.js";
 import { RunQueue } from "./runners/queue.js";
 import { columnEntryTrigger } from "./runners/trigger.js";
@@ -38,6 +39,7 @@ import agentPersonaRoutes from "./routes/agent-personas.js";
 import orchestratorRoutes from "./routes/orchestrator.js";
 import settingsRoutes from "./routes/settings.js";
 import toolRoutes from "./routes/tools.js";
+import documentRoutes from "./routes/documents.js";
 import { orchestratorService } from "./services/orchestrator.js";
 import { settingsService } from "./services/settings.js";
 import { multiAgentChatService } from "./services/multi-agent-chat.js";
@@ -64,6 +66,7 @@ declare module "fastify" {
       secrets: ReturnType<typeof secretService>;
       leases: ReturnType<typeof leaseService>;
       runs: ReturnType<typeof runService>;
+      documents: ReturnType<typeof documentService>;
       context: ReturnType<typeof contextBuilder>;
     };
     config: AppConfig;
@@ -114,6 +117,7 @@ export async function buildApp(config: AppConfig) {
     secrets: secretService(db),
     leases: leaseService(db),
     runs: runService(db),
+    documents: documentService(db),
     context: contextBuilder(db),
   };
 
@@ -184,6 +188,7 @@ export async function buildApp(config: AppConfig) {
   await app.register(orchestratorRoutes, { prefix: "/api" });
   await app.register(settingsRoutes, { prefix: "/api" });
   await app.register(toolRoutes, { prefix: "/api" });
+  await app.register(documentRoutes, { prefix: "/api" });
 
   // Serve static frontend in production
   const webDistPath = resolve(

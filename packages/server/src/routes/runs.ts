@@ -142,6 +142,9 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
         };
       });
 
+      // Build project document context
+      const projectDoc = fastify.services.context.buildBoardDocumentContext(run.boardId);
+
       return {
         ...run,
         board: board ? { projectDir: board.projectDir, worktreeMode: board.worktreeMode } : null,
@@ -166,6 +169,7 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
             }
           : null,
         columns: columnAgentMap,
+        projectDoc: projectDoc.length > 0 ? projectDoc : null,
       };
     },
   );

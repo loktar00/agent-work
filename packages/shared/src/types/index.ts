@@ -161,3 +161,14 @@ export interface LLMSettings {
   apiKey: string;
   model: string;
 }
+
+export interface BoardDocument {
+  id: string;
+  boardId: string;
+  section: string;
+  title: string;
+  content: string | null;
+  updatedBy: string | null;
+  updatedAt: string;
+  position: number;
+}

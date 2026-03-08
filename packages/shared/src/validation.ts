@@ -230,3 +230,22 @@ export const createSecretSchema = z.object({
   value: z.string().min(1),
 });
 export type CreateSecretInput = z.infer<typeof createSecretSchema>;
+
+// ── Board Document ────────────────────────────────────────────────
+export const createBoardDocumentSchema = z.object({
+  boardId: z.string().min(1),
+  section: z.string().min(1).max(255),
+  title: z.string().min(1).max(500),
+  content: z.string().max(100000).nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  position: z.number().int().min(0).optional(),
+});
+export type CreateBoardDocumentInput = z.infer<typeof createBoardDocumentSchema>;
+
+export const updateBoardDocumentSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().max(100000).nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  position: z.number().int().min(0).optional(),
+});
+export type UpdateBoardDocumentInput = z.infer<typeof updateBoardDocumentSchema>;
