@@ -145,17 +145,12 @@ export class RunQueue {
       cardId: run.cardId,
       agentConfig: {
         name: agent.name,
+        id: agent.id,
         role: agent.role,
         persona: agent.persona,
-        modelConfig: agent.modelConfig
-          ? JSON.parse(agent.modelConfig)
-          : null,
-        llmConfig: agent.llmConfig
-          ? JSON.parse(agent.llmConfig)
-          : null,
-        toolPermissions: agent.toolPermissions
-          ? JSON.parse(agent.toolPermissions)
-          : null,
+        modelConfig: agent.modelConfig,
+        llmConfig: agent.llmConfig,
+        toolPermissions: agent.toolPermissions,
         skills: agentSkills.map((s) => ({
           name: s.name,
           filePath: s.filePath,

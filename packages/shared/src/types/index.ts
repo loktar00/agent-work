@@ -18,6 +18,7 @@ export interface Board {
   description: string | null;
   projectDir: string | null;
   worktreeMode: WorktreeMode;
+  commandingAgentId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +76,23 @@ export interface Agent {
   createdAt: string;
 }
 
+export interface AgentCatalogPreset {
+  id: string;
+  name: string;
+  role: string;
+  division: string | null;
+  description: string | null;
+  persona: string | null;
+  tags: string[];
+  suggestedRunner: string | null;
+  suggestedModelConfig: Record<string, unknown> | null;
+  defaultToolPermissions: Record<string, unknown> | null;
+  source: string | null;
+  sourceRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Skill {
   id: string;
   name: string;
@@ -94,6 +112,9 @@ export interface Run {
   startedAt: string | null;
   finishedAt: string | null;
   exitCode: number | null;
+  workerId: string | null;
+  heartbeatAt: string | null;
+  cancelRequested: boolean;
 }
 
 export interface RunEvent {
@@ -171,4 +192,20 @@ export interface BoardDocument {
   updatedBy: string | null;
   updatedAt: string;
   position: number;
+}
+
+export interface ToolCall {
+  id: string;
+  boardId: string;
+  runId: string | null;
+  messageId: string | null;
+  agentId: string | null;
+  toolName: string;
+  input: Record<string, unknown> | null;
+  result: unknown;
+  status: "completed" | "failed" | "denied";
+  error: string | null;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
 }

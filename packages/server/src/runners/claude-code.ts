@@ -89,14 +89,15 @@ export class ClaudeCodeAdapter extends BaseRunnerAdapter {
       );
     }
 
-    // Board callback API instructions
     const apiUrl = input.boardApiUrl;
     const boardId = input.boardId;
-    parts.push(`## Board API
-You can report progress back to the board:
-- Complete subtask: POST ${apiUrl}/api/boards/${boardId}/tools/update_subtask {"input":{"cardId":"...","subtaskId":"...","completed":true}}
-- Post message: POST ${apiUrl}/api/boards/${boardId}/tools/send_message {"input":{"boardId":"${boardId}","cardId":"...","content":"..."}}
-- Move card when done: POST ${apiUrl}/api/boards/${boardId}/tools/move_card {"input":{"cardId":"...","columnId":"..."}}
+    const agentId = input.agentConfig.id;
+    parts.push(`## AWALL CLI
+Use the AWALL CLI to coordinate with the board. Prefer these commands over raw HTTP:
+- Show allowed tools: awall tools --server ${apiUrl} --board ${boardId} --agent ${agentId}
+- Post progress: awall message --server ${apiUrl} --board ${boardId} --card ${input.cardId} --agent ${agentId} --run ${input.runId} --text "..."
+- Complete subtask: awall call update_subtask --server ${apiUrl} --board ${boardId} --agent ${agentId} --run ${input.runId} --input "{\\"subtaskId\\":\\"...\\",\\"completed\\":true,\\"status\\":\\"pass\\"}"
+- Move card when done: awall call move_card --server ${apiUrl} --board ${boardId} --agent ${agentId} --run ${input.runId} --input "{\\"cardId\\":\\"${input.cardId}\\",\\"columnId\\":\\"...\\"}"
 `);
 
     parts.push(`## Task\n${input.prompt}\n`);

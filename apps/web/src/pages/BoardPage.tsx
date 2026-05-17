@@ -86,6 +86,7 @@ export default function BoardPage() {
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
   const [settingsProjectDir, setSettingsProjectDir] = useState('');
   const [settingsWorktreeMode, setSettingsWorktreeMode] = useState<string | null>('none');
+  const [settingsCommandingAgentId, setSettingsCommandingAgentId] = useState<string | null>(null);
 
   // Card modal state
   const [cardModalOpen, setCardModalOpen] = useState(false);
@@ -191,6 +192,7 @@ export default function BoardPage() {
             onClick={() => {
               setSettingsProjectDir(board?.projectDir ?? '');
               setSettingsWorktreeMode(board?.worktreeMode ?? 'none');
+              setSettingsCommandingAgentId(board?.commandingAgentId ?? null);
               setBoardSettingsOpen(true);
             }}
           >
@@ -247,7 +249,16 @@ export default function BoardPage() {
         }}
       />
 
-      {boardId && <BoardChatDrawer boardId={boardId} />}
+      {boardId && (
+        <BoardChatDrawer
+          boardId={boardId}
+          commandingAgentName={
+            board?.commandingAgentId
+              ? agentNames[board.commandingAgentId] ?? 'Commanding Agent'
+              : undefined
+          }
+        />
+      )}
 
       <Modal
         opened={columnModalOpen}
@@ -469,6 +480,16 @@ export default function BoardPage() {
               { value: 'manual', label: 'Manual — manage worktrees yourself' },
             ]}
           />
+          <Select
+            label="Commanding Agent"
+            description="Board-level coordinator used by PM chat"
+            value={settingsCommandingAgentId}
+            onChange={setSettingsCommandingAgentId}
+            data={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.role})` }))}
+            clearable
+            searchable
+            placeholder="Use default PM"
+          />
           {settingsWorktreeMode === 'auto' && (
             <Text size="xs" c="dimmed">
               When a task enters an agent's column, AWALL will create a git worktree with a branch named after the card.
@@ -481,6 +502,7 @@ export default function BoardPage() {
                 {
                   projectDir: settingsProjectDir.trim() || null,
                   worktreeMode: settingsWorktreeMode ?? 'none',
+                  commandingAgentId: settingsCommandingAgentId,
                 },
                 {
                   onSuccess: () => {

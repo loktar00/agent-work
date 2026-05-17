@@ -43,6 +43,13 @@
       "when": 1772944942563,
       "tag": "0005_add_board_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773985742563,
+      "tag": "0006_agent_control_plane",
+      "breakpoints": true
     }
   ]
 }

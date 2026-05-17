@@ -6,6 +6,7 @@ export const boards = sqliteTable("boards", {
   description: text("description"),
   projectDir: text("project_dir"),
   worktreeMode: text("worktree_mode").default("none"),
+  commandingAgentId: text("commanding_agent_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

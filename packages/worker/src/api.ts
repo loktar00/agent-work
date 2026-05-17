@@ -1,7 +1,7 @@
 /** Lightweight HTTP client for talking to the AWALL server */
 
 export class ServerAPI {
-  constructor(private baseUrl: string, private workerId: string) {}
+  constructor(public baseUrl: string, private workerId: string) {}
 
   private async request<T>(path: string, opts?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
@@ -52,6 +52,44 @@ export class ServerAPI {
     });
   }
 
+  /** Worker heartbeat. Returns whether cancellation has been requested. */
+  async heartbeat(runId: string): Promise<{ cancelRequested: boolean }> {
+    return this.request(`/api/runs/${runId}/heartbeat`, {
+      method: "POST",
+      body: JSON.stringify({ workerId: this.workerId }),
+    });
+  }
+
+  /** Fetch a versioned context envelope for a run */
+  async getRunContext(runId: string): Promise<unknown> {
+    return this.request(`/api/runs/${runId}/context`);
+  }
+
+  /** Fetch allowed tools for a board, optionally scoped to an agent */
+  async getTools(boardId: string, agentId?: string): Promise<unknown> {
+    const qs = agentId ? `?agentId=${encodeURIComponent(agentId)}` : "";
+    return this.request(`/api/boards/${boardId}/tools${qs}`);
+  }
+
+  /** Execute a board tool through the server registry */
+  async callTool(
+    boardId: string,
+    toolName: string,
+    input: Record<string, unknown>,
+    opts?: { agentId?: string; runId?: string; actorId?: string },
+  ): Promise<unknown> {
+    return this.request(`/api/boards/${boardId}/tools/${toolName}`, {
+      method: "POST",
+      body: JSON.stringify({
+        input,
+        agentId: opts?.agentId,
+        runId: opts?.runId,
+        actorType: opts?.agentId ? "agent" : "worker",
+        actorId: opts?.actorId ?? opts?.agentId ?? this.workerId,
+      }),
+    });
+  }
+
   /** Post a message to a card thread */
   async postMessage(boardId: string, cardId: string, content: string): Promise<void> {
     await this.request(`/api/messages`, {
@@ -81,6 +119,7 @@ export interface ClaimedRun extends QueuedRun {
   board: { projectDir: string | null; worktreeMode: string } | null;
   card: { title: string; description: string | null } | null;
   agentConfig: {
+    id: string;
     name: string;
     role: string;
     persona: string | null;

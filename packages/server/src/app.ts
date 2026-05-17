@@ -19,6 +19,10 @@ import { leaseService } from "./services/leases.js";
 import { runService } from "./services/runs.js";
 import { contextBuilder } from "./services/context.js";
 import { documentService } from "./services/documents.js";
+import { agentCatalogService } from "./services/agent-catalog.js";
+import { toolCallService } from "./services/tool-calls.js";
+import { toolRegistry } from "./services/tool-registry.js";
+import type { ToolRegistry } from "./services/tool-registry.js";
 import { RunnerRegistry } from "./runners/registry.js";
 import { RunQueue } from "./runners/queue.js";
 import { columnEntryTrigger } from "./runners/trigger.js";
@@ -40,6 +44,7 @@ import orchestratorRoutes from "./routes/orchestrator.js";
 import settingsRoutes from "./routes/settings.js";
 import toolRoutes from "./routes/tools.js";
 import documentRoutes from "./routes/documents.js";
+import agentCatalogRoutes from "./routes/agent-catalog.js";
 import { orchestratorService } from "./services/orchestrator.js";
 import { settingsService } from "./services/settings.js";
 import { multiAgentChatService } from "./services/multi-agent-chat.js";
@@ -67,12 +72,15 @@ declare module "fastify" {
       leases: ReturnType<typeof leaseService>;
       runs: ReturnType<typeof runService>;
       documents: ReturnType<typeof documentService>;
+      agentCatalog: ReturnType<typeof agentCatalogService>;
+      toolCalls: ReturnType<typeof toolCallService>;
       context: ReturnType<typeof contextBuilder>;
     };
     config: AppConfig;
     runQueue: RunQueue;
     runnerRegistry: RunnerRegistry;
     trigger: ReturnType<typeof columnEntryTrigger>;
+    toolRegistry: ToolRegistry;
     settingsService: ReturnType<typeof settingsService>;
     orchestrator: ReturnType<typeof orchestratorService>;
     multiAgentChat: ReturnType<typeof multiAgentChatService>;
@@ -118,6 +126,8 @@ export async function buildApp(config: AppConfig) {
     leases: leaseService(db),
     runs: runService(db),
     documents: documentService(db),
+    agentCatalog: agentCatalogService(db),
+    toolCalls: toolCallService(db),
     context: contextBuilder(db),
   };
 
@@ -131,14 +141,6 @@ export async function buildApp(config: AppConfig) {
   // Re-create agents service with settings dependency for getEffectiveLLMSettings
   services.agents = agentService(db, settingsSvc);
 
-  // Orchestrator (reads LLM settings from DB at call time)
-  const orchestrator = orchestratorService(services, settingsSvc);
-  app.decorate("orchestrator", orchestrator);
-
-  // Multi-agent chat service
-  const multiChat = multiAgentChatService(services, settingsSvc, app.sse.emitter);
-  app.decorate("multiAgentChat", multiChat);
-
   // Runner system
   const boardApiUrl = `http://${config.server.host === "0.0.0.0" ? "localhost" : config.server.host}:${config.server.port}`;
   const runnerRegistry = new RunnerRegistry(config.runners);
@@ -151,11 +153,30 @@ export async function buildApp(config: AppConfig) {
   });
   const trigger = columnEntryTrigger(db, runQueue);
 
-  // Register LLM runner adapter
-  runnerRegistry.register("llm", new LLMRunnerAdapter({
+  const registry = toolRegistry({
     services,
-    settingsSvc,
-  }));
+    sseEmitter: app.sse.emitter,
+    trigger,
+    runQueue,
+  });
+  app.decorate("toolRegistry", registry);
+
+  // Orchestrator (reads LLM settings from DB at call time)
+  const orchestrator = orchestratorService(services, settingsSvc, registry);
+  app.decorate("orchestrator", orchestrator);
+
+  // Multi-agent chat service
+  const multiChat = multiAgentChatService(services, settingsSvc, app.sse.emitter, registry);
+  app.decorate("multiAgentChat", multiChat);
+
+  // Register LLM runner adapter
+  runnerRegistry.register(
+    "llm",
+    new LLMRunnerAdapter({
+      toolRegistry: registry,
+      settingsSvc,
+    }),
+  );
 
   app.decorate("runnerRegistry", runnerRegistry);
   app.decorate("runQueue", runQueue);
@@ -189,6 +210,7 @@ export async function buildApp(config: AppConfig) {
   await app.register(settingsRoutes, { prefix: "/api" });
   await app.register(toolRoutes, { prefix: "/api" });
   await app.register(documentRoutes, { prefix: "/api" });
+  await app.register(agentCatalogRoutes, { prefix: "/api" });
 
   // Serve static frontend in production
   const webDistPath = resolve(

@@ -129,24 +129,15 @@ function buildPrompt(run: ClaimedRun, serverApi: ServerAPI): string {
     parts.push(`## Project Document\n${docSections.join("\n\n")}\n`);
   }
 
-  // Board callback API instructions
-  const baseUrl = (serverApi as any).baseUrl as string;
-  parts.push(`## Board API
-You can report progress and coordinate with other agents:
+  parts.push(`## AWALL CLI
+Use the AWALL CLI to inspect context and coordinate with the board. Prefer these commands over raw HTTP:
 
-### Report Progress
-- Post message: POST ${baseUrl}/api/messages {"boardId":"${run.boardId}","cardId":"${run.cardId}","authorType":"agent","authorId":"worker","content":"..."}
-- Complete subtask: POST ${baseUrl}/api/boards/${run.boardId}/tools/update_subtask {"input":{"cardId":"${run.cardId}","subtaskId":"...","completed":true}}
+- Show allowed tools: awall tools --server ${serverApi.baseUrl} --board ${run.boardId} --agent ${run.agentConfig?.id ?? run.agentId}
+- Post progress: awall message --server ${serverApi.baseUrl} --board ${run.boardId} --card ${run.cardId} --agent ${run.agentConfig?.id ?? run.agentId} --run ${run.id} --text "..."
+- Complete subtask: awall call update_subtask --server ${serverApi.baseUrl} --board ${run.boardId} --agent ${run.agentConfig?.id ?? run.agentId} --run ${run.id} --input "{\\"subtaskId\\":\\"...\\",\\"completed\\":true,\\"status\\":\\"pass\\"}"
+- Move card: awall call move_card --server ${serverApi.baseUrl} --board ${run.boardId} --agent ${run.agentConfig?.id ?? run.agentId} --run ${run.id} --input "{\\"cardId\\":\\"${run.cardId}\\",\\"columnId\\":\\"<target-column-id>\\"}"
 
-### Move Card Forward
-When your work is done, move the card to the next column to hand off to the next agent:
-- Move card: POST ${baseUrl}/api/boards/${run.boardId}/tools/move_card {"input":{"cardId":"${run.cardId}","columnId":"<target-column-id>"}}
-
-### Send Card Back
-If you find issues that a previous agent needs to fix, post a message explaining the problem, then move the card back to that agent's column. The previous agent will automatically receive your feedback in the message thread.
-- Post a message explaining what's wrong, then move the card back to the appropriate column.
-
-Use the column IDs from the Board Pipeline section above to choose the right target.
+When your work is complete, move the card to the next appropriate column. If you find issues for a previous agent, post a clear message and move the card back to that agent's column.
 `);
 
   parts.push(`## Task\n${run.prompt ?? "Complete the task described in the card."}\n`);

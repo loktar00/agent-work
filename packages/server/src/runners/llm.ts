@@ -2,21 +2,20 @@ import { EventEmitter } from "node:events";
 import type { RunnerAdapter, RunInput, RunHandle, RunResult } from "./types.js";
 import { callLLM } from "../llm/provider.js";
 import type { ChatMessage } from "../llm/provider.js";
-import { boardTools } from "../llm/tools.js";
-import { executeTool, type ExecutorServices } from "../llm/executor.js";
 import type { LLMSettings } from "@agent-board/shared";
 import type { settingsService } from "../services/settings.js";
+import type { ToolRegistry } from "../services/tool-registry.js";
 
 export class LLMRunnerAdapter implements RunnerAdapter {
   readonly type = "llm";
-  private services: ExecutorServices;
+  private toolRegistry: ToolRegistry;
   private settingsSvc: ReturnType<typeof settingsService>;
 
   constructor(opts: {
-    services: ExecutorServices;
+    toolRegistry: ToolRegistry;
     settingsSvc: ReturnType<typeof settingsService>;
   }) {
-    this.services = opts.services;
+    this.toolRegistry = opts.toolRegistry;
     this.settingsSvc = opts.settingsSvc;
   }
 
@@ -70,7 +69,13 @@ export class LLMRunnerAdapter implements RunnerAdapter {
 
       // Tool-use loop (max 10 iterations)
       for (let i = 0; i < 10; i++) {
-        const response = await callLLM(llmSettings, msgs, boardTools);
+        const toolDefs = this.toolRegistry.listTools({
+          boardId: input.boardId,
+          actorType: "agent",
+          actorId: input.agentConfig.id,
+          agentId: input.agentConfig.id,
+        });
+        const response = await callLLM(llmSettings, msgs, toolDefs);
 
         if (response.content) {
           stdout += response.content + "\n";
@@ -92,7 +97,13 @@ export class LLMRunnerAdapter implements RunnerAdapter {
           // Inject boardId if not present
           if (!toolInput.boardId) toolInput.boardId = input.boardId;
 
-          const result = executeTool(tc.name, toolInput, this.services);
+          const result = await this.toolRegistry.execute(tc.name, toolInput, {
+            boardId: input.boardId,
+            actorType: "agent",
+            actorId: input.agentConfig.id,
+            agentId: input.agentConfig.id,
+            runId: input.runId,
+          });
           const resultStr = JSON.stringify(result);
 
           events.emit(

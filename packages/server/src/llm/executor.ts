@@ -110,7 +110,7 @@ export function executeTool(
       const cardId = input.cardId as string;
 
       if (subtaskId) {
-        return services.subtasks.update(subtaskId, { completed: true, status: "done" });
+        return services.subtasks.update(subtaskId, { completed: true, status: "pass" });
       }
       if (title && cardId) {
         const allSubtasks = services.subtasks.listByCard(cardId);
@@ -118,7 +118,7 @@ export function executeTool(
           (s) => s.title.toLowerCase() === title.toLowerCase(),
         );
         if (match) {
-          return services.subtasks.update(match.id, { completed: true, status: "done" });
+          return services.subtasks.update(match.id, { completed: true, status: "pass" });
         }
         return { error: `Subtask "${title}" not found on card ${cardId}` };
       }

@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "awall-worker": "./dist/cli.js"
+    "awall-worker": "./dist/cli.js",
+    "awall": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",

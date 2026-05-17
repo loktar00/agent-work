@@ -32,6 +32,49 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
     },
   );
 
+  fastify.get<{ Params: { id: string } }>(
+    "/runs/:id/context",
+    async (req, reply) => {
+      const run = svc.getById(req.params.id);
+      if (!run) return reply.code(404).send({ error: "Run not found" });
+
+      const agent = fastify.services.agents.getById(run.agentId);
+      const board = fastify.services.boards.getById(run.boardId);
+      const card = fastify.services.cards.getById(run.cardId);
+      const context = fastify.services.context.buildCardContext(run.cardId);
+      const columns = fastify.services.columns.listByBoard(run.boardId).map((col) => {
+        const colAgent = col.agentId
+          ? fastify.services.agents.getById(col.agentId)
+          : null;
+        return {
+          columnId: col.id,
+          columnName: col.name,
+          position: col.position,
+          agentId: col.agentId ?? null,
+          agentName: colAgent?.name ?? null,
+          agentRole: colAgent?.role ?? null,
+        };
+      });
+
+      return {
+        version: 1,
+        run,
+        board,
+        card,
+        agent,
+        context,
+        columns,
+        projectDoc: fastify.services.context.buildBoardDocumentContext(run.boardId),
+        tools: fastify.toolRegistry.listTools({
+          boardId: run.boardId,
+          actorType: "agent",
+          actorId: run.agentId,
+          agentId: run.agentId,
+        }),
+      };
+    },
+  );
+
   // List available runners
   fastify.get("/runners", async () => {
     return fastify.runnerRegistry.list();
@@ -151,13 +194,14 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
         card: card ? { title: card.title, description: card.description } : null,
         agentConfig: agent
           ? {
+              id: agent.id,
               name: agent.name,
               role: agent.role,
               persona: agent.persona,
               runnerId: agent.runnerId,
-              modelConfig: agent.modelConfig ? JSON.parse(agent.modelConfig) : null,
-              llmConfig: agent.llmConfig ? JSON.parse(agent.llmConfig) : null,
-              toolPermissions: agent.toolPermissions ? JSON.parse(agent.toolPermissions) : null,
+              modelConfig: agent.modelConfig,
+              llmConfig: agent.llmConfig,
+              toolPermissions: agent.toolPermissions,
             }
           : null,
         context: cardContext
@@ -175,6 +219,20 @@ const runRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Worker reports completion
+  fastify.post<{ Params: { id: string } }>(
+    "/runs/:id/heartbeat",
+    async (req, reply) => {
+      const { workerId } = (req.body as { workerId?: string }) ?? {};
+      if (!workerId) return reply.code(400).send({ error: "workerId required" });
+      const run = svc.heartbeat(req.params.id, workerId);
+      if (!run) return reply.code(404).send({ error: "Run not found for worker" });
+      return {
+        run,
+        cancelRequested: run.cancelRequested,
+      };
+    },
+  );
+
   fastify.post<{ Params: { id: string } }>(
     "/runs/:id/complete",
     async (req, reply) => {

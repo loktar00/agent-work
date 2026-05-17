@@ -9,6 +9,7 @@ export interface RunInput {
   boardId: string;
   cardId: string;
   agentConfig: {
+    id: string;
     name: string;
     role: string;
     persona: string | null;

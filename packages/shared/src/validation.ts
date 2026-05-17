@@ -18,6 +18,7 @@ export const createBoardSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   projectDir: z.string().max(1000).nullable().optional(),
   worktreeMode: worktreeModeSchema.optional(),
+  commandingAgentId: z.string().nullable().optional(),
 });
 export type CreateBoardInput = z.infer<typeof createBoardSchema>;
 
@@ -26,6 +27,7 @@ export const updateBoardSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   projectDir: z.string().max(1000).nullable().optional(),
   worktreeMode: worktreeModeSchema.optional(),
+  commandingAgentId: z.string().nullable().optional(),
 });
 export type UpdateBoardInput = z.infer<typeof updateBoardSchema>;
 
@@ -147,6 +149,37 @@ export const updateAgentSchema = z.object({
   toolPermissions: z.record(z.unknown()).nullable().optional(),
 });
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
+
+// Agent catalog presets are reusable templates. Agent instances are created
+// from these presets and can then be customized per board/project.
+export const createAgentCatalogPresetSchema = z.object({
+  id: z.string().min(1).max(255).optional(),
+  name: z.string().min(1).max(255),
+  role: z.string().min(1).max(255),
+  division: z.string().max(255).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  persona: z.string().max(100000).nullable().optional(),
+  tags: z.array(z.string().min(1).max(100)).optional(),
+  suggestedRunner: z.string().max(255).nullable().optional(),
+  suggestedModelConfig: z.record(z.unknown()).nullable().optional(),
+  defaultToolPermissions: z.record(z.unknown()).nullable().optional(),
+  source: z.string().max(255).nullable().optional(),
+  sourceRef: z.string().max(1000).nullable().optional(),
+});
+export type CreateAgentCatalogPresetInput = z.infer<
+  typeof createAgentCatalogPresetSchema
+>;
+
+export const instantiateAgentPresetSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  runnerId: z.string().nullable().optional(),
+  modelConfig: z.record(z.unknown()).nullable().optional(),
+  llmConfig: llmSettingsSchema.nullable().optional(),
+  toolPermissions: z.record(z.unknown()).nullable().optional(),
+});
+export type InstantiateAgentPresetInput = z.infer<
+  typeof instantiateAgentPresetSchema
+>;
 
 // ── Skill ──────────────────────────────────────────────────────────
 export const createSkillSchema = z.object({

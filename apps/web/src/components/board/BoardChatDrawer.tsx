@@ -29,6 +29,7 @@ import styles from './BoardChatDrawer.module.css';
 
 interface BoardChatDrawerProps {
   boardId: string;
+  commandingAgentName?: string;
 }
 
 interface OrchestratorResponse {
@@ -48,7 +49,7 @@ interface MultiChatResponse {
   rounds: number;
 }
 
-export function BoardChatDrawer({ boardId }: BoardChatDrawerProps) {
+export function BoardChatDrawer({ boardId, commandingAgentName }: BoardChatDrawerProps) {
   const navigate = useNavigate();
   const open = useUIStore((s) => s.boardChatOpen);
   const height = useUIStore((s) => s.boardChatHeight);
@@ -157,7 +158,9 @@ export function BoardChatDrawer({ boardId }: BoardChatDrawerProps) {
       <div className={styles.resizeHandle} onMouseDown={handleMouseDown} />
 
       <div className={styles.header}>
-        <span className={styles.headerTitle}>Board Chat</span>
+        <span className={styles.headerTitle}>
+          Board Chat{commandingAgentName ? `: ${commandingAgentName}` : ''}
+        </span>
         <SegmentedControl
           size="xs"
           value={chatMode}
@@ -240,7 +243,7 @@ export function BoardChatDrawer({ boardId }: BoardChatDrawerProps) {
 
       <div className={styles.inputArea}>
         <Textarea
-          placeholder="Ask the PM orchestrator..."
+          placeholder={commandingAgentName ? `Ask ${commandingAgentName}...` : 'Ask the PM orchestrator...'}
           size="xs"
           value={input}
           onChange={(e) => setInput(e.currentTarget.value)}

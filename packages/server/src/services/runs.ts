@@ -41,12 +41,24 @@ export function runService(db: DB) {
         startedAt: null,
         finishedAt: null,
         exitCode: null,
+        workerId: null,
+        heartbeatAt: null,
+        cancelRequested: false,
       };
       db.insert(runs).values(row).run();
       return row;
     },
 
-    update(id: string, input: UpdateRunInput & { startedAt?: string; finishedAt?: string }) {
+    update(
+      id: string,
+      input: UpdateRunInput & {
+        startedAt?: string;
+        finishedAt?: string;
+        workerId?: string | null;
+        heartbeatAt?: string | null;
+        cancelRequested?: boolean;
+      },
+    ) {
       const existing = db.select().from(runs).where(eq(runs.id, id)).get();
       if (!existing) return null;
       db.update(runs).set(input).where(eq(runs.id, id)).run();
@@ -54,7 +66,11 @@ export function runService(db: DB) {
     },
 
     cancel(id: string) {
-      return this.update(id, { status: "cancelled", finishedAt: now() });
+      return this.update(id, {
+        status: "cancelled",
+        finishedAt: now(),
+        cancelRequested: true,
+      });
     },
 
     addEvent(runId: string, type: string, data: string) {
@@ -95,7 +111,13 @@ export function runService(db: DB) {
       if (!run || run.status !== "queued") return null;
       const ts = now();
       db.update(runs)
-        .set({ status: "running", startedAt: ts })
+        .set({
+          status: "running",
+          startedAt: ts,
+          workerId,
+          heartbeatAt: ts,
+          cancelRequested: false,
+        })
         .where(and(eq(runs.id, id), eq(runs.status, "queued")))
         .run();
       const updated = db.select().from(runs).where(eq(runs.id, id)).get();
@@ -108,7 +130,20 @@ export function runService(db: DB) {
       const status = exitCode === 0 ? "completed" : "failed";
       const ts = now();
       db.update(runs)
-        .set({ status, exitCode, finishedAt: ts })
+        .set({ status, exitCode, finishedAt: ts, heartbeatAt: ts })
+        .where(eq(runs.id, id))
+        .run();
+      return db.select().from(runs).where(eq(runs.id, id)).get();
+    },
+
+    heartbeat(id: string, workerId: string) {
+      const ts = now();
+      const run = db.select().from(runs).where(eq(runs.id, id)).get();
+      if (!run || run.workerId !== workerId || run.status !== "running") {
+        return null;
+      }
+      db.update(runs)
+        .set({ heartbeatAt: ts })
         .where(eq(runs.id, id))
         .run();
       return db.select().from(runs).where(eq(runs.id, id)).get();

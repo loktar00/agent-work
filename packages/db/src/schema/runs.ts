@@ -22,6 +22,11 @@ export const runs = sqliteTable(
     startedAt: text("started_at"),
     finishedAt: text("finished_at"),
     exitCode: integer("exit_code"),
+    workerId: text("worker_id"),
+    heartbeatAt: text("heartbeat_at"),
+    cancelRequested: integer("cancel_requested", { mode: "boolean" })
+      .notNull()
+      .default(false),
   },
   (table) => [
     index("runs_card_id_idx").on(table.cardId),

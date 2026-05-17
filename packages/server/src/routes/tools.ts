@@ -1,52 +1,83 @@
 import type { FastifyPluginAsync } from "fastify";
-import { boardTools } from "../llm/tools.js";
-import { executeTool } from "../llm/executor.js";
+
+type ToolActorType = "human" | "agent" | "system" | "worker";
 
 const toolRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /api/boards/:boardId/tools — tool manifest
   fastify.get<{
     Params: { boardId: string };
+    Querystring: { agentId?: string };
   }>("/boards/:boardId/tools", async (req) => {
-    return boardTools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters,
-    }));
+    const { agentId } = req.query;
+    return fastify.toolRegistry
+      .listTools({
+        boardId: req.params.boardId,
+        actorType: agentId ? "agent" : "human",
+        actorId: agentId ?? "tool-api",
+        agentId: agentId ?? null,
+      })
+      .map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      }));
   });
 
-  // POST /api/boards/:boardId/tools/:toolName — execute a single tool
   fastify.post<{
     Params: { boardId: string; toolName: string };
-    Body: { input: Record<string, unknown> };
+    Body: {
+      input: Record<string, unknown>;
+      actorType?: ToolActorType;
+      actorId?: string;
+      agentId?: string | null;
+      runId?: string | null;
+      messageId?: string | null;
+    };
   }>("/boards/:boardId/tools/:toolName", async (req, reply) => {
     const { boardId, toolName } = req.params;
-    const { input } = req.body as { input: Record<string, unknown> };
+    const {
+      input,
+      actorType,
+      actorId,
+      agentId,
+      runId,
+      messageId,
+    } = req.body as {
+      input: Record<string, unknown>;
+      actorType?: ToolActorType;
+      actorId?: string;
+      agentId?: string | null;
+      runId?: string | null;
+      messageId?: string | null;
+    };
 
-    const toolDef = boardTools.find((t) => t.name === toolName);
+    const resolvedActorType = actorType ?? (agentId ? "agent" : "human");
+    const resolvedActorId = actorId ?? agentId ?? "tool-api";
+
+    const toolDef = fastify.toolRegistry
+      .listTools({
+        boardId,
+        actorType: "human",
+        actorId: "tool-api",
+      })
+      .find((tool) => tool.name === toolName);
+
     if (!toolDef) {
       return reply.code(404).send({ error: `Unknown tool: ${toolName}` });
     }
 
     try {
-      const result = executeTool(toolName, { ...input, boardId }, fastify.services);
-
-      // Emit SSE event so board updates
-      fastify.sse.emitter.emit(boardId, {
-        type: "board:updated",
-        data: { source: "tool-api", tool: toolName },
-      });
-
-      // If move_card was called, trigger the next agent's column entry
-      if (toolName === "move_card" && result && typeof result === "object") {
-        const card = result as { id: string; boardId: string; columnId: string };
-        if (card.id && card.columnId) {
-          fastify.trigger.onCardMoved({
-            id: card.id,
-            boardId,
-            columnId: card.columnId,
-          });
-        }
-      }
+      const result = await fastify.toolRegistry.execute(
+        toolName,
+        { ...input, boardId },
+        {
+          boardId,
+          actorType: resolvedActorType,
+          actorId: resolvedActorId,
+          agentId: agentId ?? null,
+          runId: runId ?? null,
+          messageId: messageId ?? null,
+        },
+      );
 
       return { result };
     } catch (err: any) {

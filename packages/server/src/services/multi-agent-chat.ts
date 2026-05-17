@@ -8,9 +8,8 @@ import type { messageService } from "./messages.js";
 import type { settingsService } from "./settings.js";
 import { callLLM } from "../llm/provider.js";
 import type { ChatMessage } from "../llm/provider.js";
-import { boardTools } from "../llm/tools.js";
-import { executeTool } from "../llm/executor.js";
 import type { LLMSettings } from "@agent-board/shared";
+import type { ToolRegistry } from "./tool-registry.js";
 
 interface Services {
   boards: ReturnType<typeof boardService>;
@@ -25,6 +24,7 @@ export function multiAgentChatService(
   services: Services,
   settingsSvc: ReturnType<typeof settingsService>,
   sseEmitter: EventEmitter,
+  tools: ToolRegistry,
 ) {
   return {
     async chat(
@@ -65,9 +65,8 @@ export function multiAgentChatService(
           if (!agent) continue;
 
           // Resolve LLM settings for this agent
-          const llmSettings: LLMSettings | null = agent.llmConfig
-            ? JSON.parse(agent.llmConfig)
-            : settingsSvc.getLLMSettings();
+          const llmSettings: LLMSettings | null =
+            agent.llmConfig ?? settingsSvc.getLLMSettings();
 
           if (!llmSettings) {
             const errMsg = `No LLM settings for agent ${agent.name}`;
@@ -128,7 +127,14 @@ export function multiAgentChatService(
           }> = [];
 
           // Tool-use loop
-          let response = await callLLM(llmSettings, msgs, boardTools);
+          const toolDefs = tools.listTools({
+            boardId,
+            actorType: "agent",
+            actorId: agent.id,
+            agentId: agent.id,
+          });
+
+          let response = await callLLM(llmSettings, msgs, toolDefs);
 
           let iterations = 0;
           while (response.toolCalls.length > 0 && iterations < 5) {
@@ -142,7 +148,12 @@ export function multiAgentChatService(
             for (const tc of response.toolCalls) {
               const toolInput = JSON.parse(tc.arguments);
               if (!toolInput.boardId) toolInput.boardId = boardId;
-              const result = executeTool(tc.name, toolInput, services);
+              const result = await tools.execute(tc.name, toolInput, {
+                boardId,
+                actorType: "agent",
+                actorId: agent.id,
+                agentId: agent.id,
+              });
               agentToolCalls.push({
                 name: tc.name,
                 input: toolInput,
@@ -155,7 +166,7 @@ export function multiAgentChatService(
               });
             }
 
-            response = await callLLM(llmSettings, msgs, boardTools);
+            response = await callLLM(llmSettings, msgs, toolDefs);
           }
 
           const agentMessage = response.content ?? "";
@@ -164,7 +175,7 @@ export function multiAgentChatService(
           services.messages.create({
             boardId,
             authorType: "agent",
-            authorId: agent.name,
+            authorId: agent.id,
             content: agentMessage,
           });
 

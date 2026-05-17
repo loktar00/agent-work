@@ -8,8 +8,7 @@ import type { contextBuilder } from "./context.js";
 import type { settingsService } from "./settings.js";
 import { callLLM } from "../llm/provider.js";
 import type { ChatMessage } from "../llm/provider.js";
-import { boardTools } from "../llm/tools.js";
-import { executeTool } from "../llm/executor.js";
+import type { ToolRegistry } from "./tool-registry.js";
 
 interface Services {
   boards: ReturnType<typeof boardService>;
@@ -24,6 +23,7 @@ interface Services {
 export function orchestratorService(
   services: Services,
   settings: ReturnType<typeof settingsService>,
+  tools: ToolRegistry,
 ) {
   return {
     async chat(
@@ -31,13 +31,18 @@ export function orchestratorService(
       message: string,
       history?: Array<{ role: string; content: string }>,
     ) {
-      const llmSettings = settings.getLLMSettings();
+      const board = services.boards.getById(boardId);
+      if (!board) throw new Error("Board not found");
+
+      const commandingAgent = board.commandingAgentId
+        ? services.agents.getById(board.commandingAgentId)
+        : null;
+      const llmSettings = commandingAgent
+        ? services.agents.getEffectiveLLMSettings(commandingAgent.id)
+        : settings.getLLMSettings();
       if (!llmSettings) {
         throw new Error("LLM not configured. Go to Settings to set up a provider.");
       }
-
-      const board = services.boards.getById(boardId);
-      if (!board) throw new Error("Board not found");
 
       // Save user message to board thread
       const userMsg = services.messages.create({
@@ -47,11 +52,20 @@ export function orchestratorService(
         content: message,
       });
 
-      const systemPrompt = `You are a Project Manager (PM) for the board "${board.name}". You help manage the kanban board by creating columns, cards, subtasks, and organizing work.
+      const actorId = commandingAgent?.id ?? "orchestrator";
+      const actorName = commandingAgent?.name ?? "Project Manager";
+      const actorRole = commandingAgent?.role ?? "PM";
+      const persona = commandingAgent?.persona ?? "";
+
+      const systemPrompt = `You are ${actorName}, the commanding agent (${actorRole}) for the board "${board.name}".
+
+${persona}
+
+You manage the board autonomously for board-shaping work: inspect the agent catalog, create needed agents from presets, create columns, create cards, assign agents to columns, queue runs, update the project document, and report progress to the primary user.
 
 When the user asks you to do something on the board, use the available tools to make changes. Always use boardId="${boardId}" when calling tools that need it.
 
-Be concise in your responses. After making changes, briefly summarize what you did.`;
+Be concise in your responses. After making changes, briefly summarize what you did and what agents/runs you started.`;
 
       // Build messages array
       const msgs: ChatMessage[] = [
@@ -75,7 +89,14 @@ Be concise in your responses. After making changes, briefly summarize what you d
       }> = [];
 
       // Tool-use loop
-      let response = await callLLM(llmSettings, msgs, boardTools);
+      const toolDefs = tools.listTools({
+        boardId,
+        actorType: "agent",
+        actorId,
+        agentId: commandingAgent?.id ?? null,
+      });
+
+      let response = await callLLM(llmSettings, msgs, toolDefs);
 
       while (response.toolCalls.length > 0) {
         // Add assistant message with tool calls
@@ -88,7 +109,12 @@ Be concise in your responses. After making changes, briefly summarize what you d
         // Execute each tool and add results
         for (const tc of response.toolCalls) {
           const input = JSON.parse(tc.arguments);
-          const result = executeTool(tc.name, input, services);
+          const result = await tools.execute(tc.name, input, {
+            boardId,
+            actorType: "agent",
+            actorId,
+            agentId: commandingAgent?.id ?? null,
+          });
           toolCallResults.push({ name: tc.name, input, result });
           msgs.push({
             role: "tool",
@@ -97,7 +123,7 @@ Be concise in your responses. After making changes, briefly summarize what you d
           });
         }
 
-        response = await callLLM(llmSettings, msgs, boardTools);
+        response = await callLLM(llmSettings, msgs, toolDefs);
       }
 
       const finalText = response.content ?? "";
@@ -106,7 +132,7 @@ Be concise in your responses. After making changes, briefly summarize what you d
       services.messages.create({
         boardId,
         authorType: "agent",
-        authorId: "orchestrator",
+        authorId: actorId,
         content: finalText,
       });
 

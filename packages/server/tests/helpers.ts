@@ -17,6 +17,10 @@ import { auditService } from "../src/services/audit.js";
 import { secretService } from "../src/services/secrets.js";
 import { leaseService } from "../src/services/leases.js";
 import { runService } from "../src/services/runs.js";
+import { documentService } from "../src/services/documents.js";
+import { agentCatalogService } from "../src/services/agent-catalog.js";
+import { toolCallService } from "../src/services/tool-calls.js";
+import { toolRegistry } from "../src/services/tool-registry.js";
 import { contextBuilder } from "../src/services/context.js";
 import { RunnerRegistry } from "../src/runners/registry.js";
 import { RunQueue } from "../src/runners/queue.js";
@@ -34,6 +38,8 @@ import secretRoutes from "../src/routes/secrets.js";
 import leaseRoutes from "../src/routes/leases.js";
 import runRoutes from "../src/routes/runs.js";
 import eventRoutes from "../src/routes/events.js";
+import toolRoutes from "../src/routes/tools.js";
+import agentCatalogRoutes from "../src/routes/agent-catalog.js";
 import errorHandler from "../src/plugins/error-handler.js";
 import ssePlugin from "../src/plugins/sse.js";
 import type { DB } from "@agent-board/db";
@@ -46,6 +52,7 @@ const CREATE_TABLES = `
     description TEXT,
     project_dir TEXT,
     worktree_mode TEXT DEFAULT 'none',
+    commanding_agent_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -127,7 +134,10 @@ const CREATE_TABLES = `
     prompt TEXT,
     started_at TEXT,
     finished_at TEXT,
-    exit_code INTEGER
+    exit_code INTEGER,
+    worker_id TEXT,
+    heartbeat_at TEXT,
+    cancel_requested INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS runs_card_id_idx ON runs(card_id);
   CREATE INDEX IF NOT EXISTS runs_agent_id_idx ON runs(agent_id);
@@ -206,6 +216,57 @@ const CREATE_TABLES = `
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS board_documents (
+    id TEXT PRIMARY KEY,
+    board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    section TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT,
+    updated_by TEXT,
+    updated_at TEXT NOT NULL,
+    position INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS board_documents_board_id_idx ON board_documents(board_id);
+
+  CREATE TABLE IF NOT EXISTS agent_catalog_presets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    division TEXT,
+    description TEXT,
+    persona TEXT,
+    tags TEXT,
+    suggested_runner TEXT,
+    suggested_model_config TEXT,
+    default_tool_permissions TEXT,
+    source TEXT,
+    source_ref TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS agent_catalog_presets_role_idx ON agent_catalog_presets(role);
+  CREATE INDEX IF NOT EXISTS agent_catalog_presets_division_idx ON agent_catalog_presets(division);
+
+  CREATE TABLE IF NOT EXISTS tool_calls (
+    id TEXT PRIMARY KEY,
+    board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+    message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
+    agent_id TEXT REFERENCES agents(id) ON DELETE SET NULL,
+    tool_name TEXT NOT NULL,
+    input TEXT,
+    result TEXT,
+    status TEXT NOT NULL,
+    error TEXT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS tool_calls_board_id_idx ON tool_calls(board_id);
+  CREATE INDEX IF NOT EXISTS tool_calls_run_id_idx ON tool_calls(run_id);
+  CREATE INDEX IF NOT EXISTS tool_calls_agent_id_idx ON tool_calls(agent_id);
+  CREATE INDEX IF NOT EXISTS tool_calls_tool_name_idx ON tool_calls(tool_name);
 `;
 
 export function createTestDb() {
@@ -245,6 +306,9 @@ export async function createTestApp() {
     secrets: secretService(db),
     leases: leaseService(db),
     runs: runService(db),
+    documents: documentService(db),
+    agentCatalog: agentCatalogService(db),
+    toolCalls: toolCallService(db),
     context: contextBuilder(db),
   };
 
@@ -265,10 +329,17 @@ export async function createTestApp() {
     maxConcurrency: 2,
   });
   const trigger = columnEntryTrigger(db, runQueue);
+  const registry = toolRegistry({
+    services,
+    sseEmitter: app.sse.emitter,
+    trigger,
+    runQueue,
+  });
 
   app.decorate("runnerRegistry", runnerRegistry);
   app.decorate("runQueue", runQueue);
   app.decorate("trigger", trigger);
+  app.decorate("toolRegistry", registry);
 
   // Health check
   app.get("/api/health", async () => ({
@@ -290,6 +361,8 @@ export async function createTestApp() {
   await app.register(leaseRoutes, { prefix: "/api" });
   await app.register(runRoutes, { prefix: "/api" });
   await app.register(eventRoutes, { prefix: "/api" });
+  await app.register(toolRoutes, { prefix: "/api" });
+  await app.register(agentCatalogRoutes, { prefix: "/api" });
 
   // Cleanup on close
   app.addHook("onClose", async () => {

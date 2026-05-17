@@ -1,11 +1,13 @@
 import {
   Drawer,
   TextInput,
+  Textarea,
   Stack,
   Group,
   Select,
   Accordion,
   Button,
+  Divider,
 } from '@mantine/core';
 import {
   IconChecklist,
@@ -13,11 +15,13 @@ import {
   IconMessage,
   IconHistory,
   IconTrash,
+  IconPlayerPlay,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { Card, Agent } from '@agent-board/shared';
 import { CardStatus } from '@agent-board/shared';
 import { useDeleteCard } from '../../api/hooks/useCards';
+import { useCreateRun } from '../../api/hooks/useRuns';
 import { StatusBadge } from '../StatusBadge';
 import { SubtaskList } from './SubtaskList';
 import { ArtifactsList } from './ArtifactsList';
@@ -52,11 +56,15 @@ export function CardDetailDrawer({
 }: CardDetailDrawerProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const [runAgentId, setRunAgentId] = useState<string | null>(null);
+  const [runPrompt, setRunPrompt] = useState('');
   const deleteCard = useDeleteCard(boardId);
+  const createRun = useCreateRun(boardId);
 
   if (!card) return null;
 
   const agentOptions = agents.map((a) => ({ value: a.id, label: a.name }));
+  const selectedRunAgentId = runAgentId ?? card.assigneeAgentId ?? null;
 
   return (
     <Drawer
@@ -119,6 +127,44 @@ export function CardDetailDrawer({
             placeholder="Unassigned"
           />
         </Group>
+
+        <Divider />
+
+        <Stack gap="xs">
+          <Group grow align="flex-end">
+            <Select
+              label="Run Agent"
+              data={agentOptions}
+              value={selectedRunAgentId}
+              onChange={setRunAgentId}
+              placeholder="Select an agent"
+              searchable
+            />
+            <Button
+              leftSection={<IconPlayerPlay size={16} />}
+              loading={createRun.isPending}
+              disabled={!selectedRunAgentId}
+              onClick={() => {
+                if (!selectedRunAgentId) return;
+                createRun.mutate({
+                  cardId: card.id,
+                  agentId: selectedRunAgentId,
+                  prompt: runPrompt.trim() || null,
+                });
+              }}
+            >
+              Run
+            </Button>
+          </Group>
+          <Textarea
+            value={runPrompt}
+            onChange={(e) => setRunPrompt(e.currentTarget.value)}
+            placeholder="Optional run prompt. Blank uses the card context."
+            autosize
+            minRows={2}
+            maxRows={4}
+          />
+        </Stack>
 
         <Accordion
           multiple

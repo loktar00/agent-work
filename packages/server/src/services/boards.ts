@@ -23,6 +23,7 @@ export function boardService(db: DB) {
         description: input.description ?? null,
         projectDir: input.projectDir ?? null,
         worktreeMode: input.worktreeMode ?? "none",
+        commandingAgentId: input.commandingAgentId ?? null,
         createdAt: ts,
         updatedAt: ts,
       };

@@ -5,14 +5,41 @@ import type { CreateAgentInput, UpdateAgentInput, LLMSettings } from "@agent-boa
 import { newId, now } from "../utils.js";
 import type { settingsService } from "./settings.js";
 
+type AgentRow = typeof agents.$inferSelect;
+
+function parseJsonObject<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function serializeJson(value: Record<string, unknown> | null | undefined) {
+  return value ? JSON.stringify(value) : null;
+}
+
+export function normalizeAgent(row: AgentRow | undefined) {
+  if (!row) return null;
+  return {
+    ...row,
+    modelConfig: parseJsonObject<Record<string, unknown>>(row.modelConfig),
+    llmConfig: parseJsonObject<LLMSettings>(row.llmConfig),
+    toolPermissions: parseJsonObject<Record<string, unknown>>(row.toolPermissions),
+  };
+}
+
 export function agentService(db: DB, settingsSvc?: ReturnType<typeof settingsService>) {
   return {
     list() {
-      return db.select().from(agents).all();
+      return db.select().from(agents).all().map((row) => normalizeAgent(row)!);
     },
 
     getById(id: string) {
-      return db.select().from(agents).where(eq(agents.id, id)).get();
+      return normalizeAgent(
+        db.select().from(agents).where(eq(agents.id, id)).get(),
+      );
     },
 
     create(input: CreateAgentInput) {
@@ -24,19 +51,13 @@ export function agentService(db: DB, settingsSvc?: ReturnType<typeof settingsSer
         role: input.role,
         persona: input.persona ?? null,
         runnerId: input.runnerId ?? null,
-        modelConfig: input.modelConfig
-          ? JSON.stringify(input.modelConfig)
-          : null,
-        llmConfig: input.llmConfig
-          ? JSON.stringify(input.llmConfig)
-          : null,
-        toolPermissions: input.toolPermissions
-          ? JSON.stringify(input.toolPermissions)
-          : null,
+        modelConfig: serializeJson(input.modelConfig),
+        llmConfig: input.llmConfig ? JSON.stringify(input.llmConfig) : null,
+        toolPermissions: serializeJson(input.toolPermissions),
         createdAt: ts,
       };
       db.insert(agents).values(row).run();
-      return row;
+      return normalizeAgent(row)!;
     },
 
     update(id: string, input: UpdateAgentInput) {
@@ -52,19 +73,17 @@ export function agentService(db: DB, settingsSvc?: ReturnType<typeof settingsSer
       if (input.persona !== undefined) updates.persona = input.persona;
       if (input.runnerId !== undefined) updates.runnerId = input.runnerId;
       if (input.modelConfig !== undefined)
-        updates.modelConfig = input.modelConfig
-          ? JSON.stringify(input.modelConfig)
-          : null;
+        updates.modelConfig = serializeJson(input.modelConfig);
       if (input.llmConfig !== undefined)
         updates.llmConfig = input.llmConfig
           ? JSON.stringify(input.llmConfig)
           : null;
       if (input.toolPermissions !== undefined)
-        updates.toolPermissions = input.toolPermissions
-          ? JSON.stringify(input.toolPermissions)
-          : null;
+        updates.toolPermissions = serializeJson(input.toolPermissions);
       db.update(agents).set(updates).where(eq(agents.id, id)).run();
-      return db.select().from(agents).where(eq(agents.id, id)).get();
+      return normalizeAgent(
+        db.select().from(agents).where(eq(agents.id, id)).get(),
+      );
     },
 
     getEffectiveLLMSettings(agentId: string): LLMSettings | null {
