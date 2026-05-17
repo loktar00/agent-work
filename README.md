@@ -1,207 +1,205 @@
-# AWALL — Agent Wall
+# AWALL - Agent Wall
 
-A kanban board for orchestrating heterogeneous AI agent teams. Different AI models from different providers work together on the same board — each with their own persona, tools, and LLM configuration — visible in real-time.
+AWALL is a local-first control plane for coordinating AI agents on software work.
+It combines a Kanban board, agent catalog, run queue, external worker protocol,
+and CLI-accessible board tools so heterogeneous agents can collaborate on the
+same project.
 
-## Architecture
+The important idea: the board is the source of truth. Agents should inspect the
+board, claim or receive work through runs, report progress back to the board,
+and hand work to other agents by moving cards or creating runs.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Remote Server                         │
-│                                                          │
-│  ┌──────────┐   ┌──────────────┐   ┌─────────────────┐  │
-│  │  Web UI   │   │  Fastify API  │   │  SQLite + SSE   │  │
-│  │  (React)  │◄──┤  Run Queue    │──►│  boards, cards  │  │
-│  │           │   │  Triggers     │   │  agents, runs   │  │
-│  └──────────┘   └──────┬───────┘   └─────────────────┘  │
-│                        │                                  │
-│              Worker API (HTTP)                            │
-│              GET  /runs/queued                            │
-│              POST /runs/:id/claim                         │
-│              POST /runs/:id/events                        │
-│              POST /runs/:id/complete                      │
-└────────────────────────┬────────────────────────────────┘
-                         │  polling
-                         │
-┌────────────────────────┴────────────────────────────────┐
-│                    Local Machine                         │
-│                                                          │
-│  ┌───────────────────────────────────────────────────┐   │
-│  │                  awall-worker                      │   │
-│  │                                                    │   │
-│  │  1. Polls server for queued runs                   │   │
-│  │  2. Claims a run atomically                        │   │
-│  │  3. Spawns CLI tool in project directory            │   │
-│  │  4. Streams stdout/stderr back to server            │   │
-│  │  5. Reports exit code on completion                 │   │
-│  └──────────┬────────────────────────────────────────┘   │
-│             │ spawns                                      │
-│  ┌──────────┴──────────┐   ┌──────────────────────────┐  │
-│  │  CLI Harnesses      │   │  Project Directory        │  │
-│  │  · claude (Claude Code) │   │  /path/to/repo            │  │
-│  │  · codex  (OpenAI Codex)│   │                           │  │
-│  │  · aider  (Aider)      │   │  Git worktrees for        │  │
-│  │  · any custom CLI      │   │  concurrent agent tasks   │  │
-│  └─────────────────────┘   └──────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
-```
+## Agent Quick Start
 
-The **server** is a coordination hub — it manages boards, cards, agents, and a run queue. It can live on any machine (remote VPS, home server, etc.).
+If you are an AI agent pointed at this repository, start here.
 
-The **worker** runs locally on whatever machine has the code. It polls the server for queued runs, claims them, executes the appropriate CLI tool (Claude Code, Codex, Aider, etc.) in the project directory, and streams results back. Multiple workers can run on different machines, each pointing at different project directories.
-
-## How It Works
-
-1. **Create a board** with columns representing workflow stages (e.g., Planning → Development → Review → Done)
-2. **Configure the board** with a project directory path and optional worktree mode
-3. **Create agents** with personas, assigned CLI runners, and model configurations
-4. **Assign agents to columns** — when a card enters a column, the assigned agent's run is automatically queued
-5. **Start a worker** pointing at your local project directory — it picks up queued runs and executes them
-6. **Agents do real work** — they write code, run tests, and use the board callback API to post messages, complete subtasks, and move cards to the next column
-7. **Pipeline flow** — when an agent moves a card to the next column, the next agent auto-starts, creating an assembly line
-
-## Quick Start
+1. Read this README.
+2. Inspect the actual code before changing behavior. Key paths are listed below.
+3. Run verification before reporting completion:
 
 ```bash
-# Prerequisites: Node.js >= 22, pnpm
+pnpm -r build
+pnpm -r test
+```
+
+4. Do not mutate unrelated dirty files. This repo may have local generated
+   artifacts or user-owned changes.
+
+If you are an external task agent working on an AWALL run, prefer the `awall`
+CLI instead of raw HTTP:
+
+```bash
+awall context --server http://localhost:3000 --run <run-id>
+awall tools --server http://localhost:3000 --board <board-id> --agent <agent-id>
+awall message --server http://localhost:3000 --board <board-id> --card <card-id> --agent <agent-id> --run <run-id> --text "Progress update"
+awall call move_card --server http://localhost:3000 --board <board-id> --agent <agent-id> --run <run-id> --input "{\"cardId\":\"<card-id>\",\"columnId\":\"<target-column-id>\"}"
+```
+
+Use board tools for board state. Do not write directly to the SQLite database.
+
+## What This Project Does
+
+AWALL lets a user define:
+
+- Boards for projects.
+- Columns for workflow stages.
+- Cards for tasks.
+- Agents with personas, runners, models, and tool permissions.
+- Catalog presets that can be inspected and instantiated into live agents.
+- A commanding agent for each board.
+- Runs that execute agents against cards.
+
+Agents can collaborate by:
+
+- Reading board/card/run context.
+- Creating cards, subtasks, agents, and columns.
+- Posting board or card messages.
+- Updating project documents.
+- Queueing runs for other agents.
+- Moving cards between columns to trigger downstream agents.
+
+## Current Integration Model
+
+The primary external-agent integration surface is CLI-first.
+
+- `awall-worker` polls the server, claims queued runs, spawns local agent
+  harnesses, streams logs, and reports completion.
+- `awall` exposes agent-friendly commands for context, tool discovery, tool
+  execution, messages, and run heartbeat.
+- HTTP endpoints remain available underneath the CLI.
+- MCP is not the primary interface yet. It should be built later as a thin
+  adapter over the same server-side tool registry.
+
+## Repository Layout
+
+```text
+.
+|-- agent-board.yaml              # Local server configuration
+|-- package.json                  # Root pnpm workspace scripts
+|-- apps/
+|   `-- web/                      # React + Mantine UI
+|-- packages/
+|   |-- shared/                   # Shared TypeScript types and Zod schemas
+|   |-- db/                       # Drizzle SQLite schema and migrations
+|   |-- server/                   # Fastify API, tool registry, run queue
+|   `-- worker/                   # awall and awall-worker CLIs
+|-- e2e/                          # Playwright tests
+`-- docs/                         # Product/use-case notes
+```
+
+Key implementation files:
+
+- `packages/server/src/services/tool-registry.ts`
+  Central board tool execution path. Permissions, tool-call logging, events, and
+  post-action hooks belong here.
+- `packages/server/src/llm/tools.ts`
+  Tool manifest exposed to LLMs, CLI clients, and future MCP adapters.
+- `packages/server/src/services/agent-catalog.ts`
+  Built-in and persisted agent catalog presets.
+- `packages/server/src/services/orchestrator.ts`
+  Board chat commanding-agent flow.
+- `packages/server/src/services/multi-agent-chat.ts`
+  Multi-agent discussion flow.
+- `packages/server/src/runners/*`
+  Server-side runner adapters.
+- `packages/worker/src/cli.ts`
+  `awall` and `awall-worker` command entrypoint.
+- `packages/worker/src/runner.ts`
+  External worker prompt and harness execution.
+- `apps/web/src/pages/BoardPage.tsx`
+  Board UI, board settings, commanding-agent selection.
+- `apps/web/src/components/card/CardDetailDrawer.tsx`
+  Card detail and manual agent run control.
+
+## Core Concepts
+
+### Board
+
+A board represents one project. It has columns, cards, a project directory, a
+worktree mode, and an optional commanding agent.
+
+### Column
+
+A workflow stage. A column can have an assigned agent. When a card enters an
+agent-owned column, AWALL creates a queued run for that agent.
+
+### Card
+
+A work item. Cards can have subtasks, acceptance criteria, artifacts, messages,
+run history, status, priority, and an assignee.
+
+### Agent
+
+A configured live worker identity. Agents have:
+
+- Name and role.
+- Persona/system prompt.
+- Runner ID, such as `claude-code`, `codex`, `opencode`, `droid`, or `llm`.
+- Model config.
+- Optional LLM config.
+- Tool permissions.
+
+### Agent Catalog Preset
+
+A reusable template for creating agents. Presets are not live workers until they
+are instantiated into agents. Commanding agents can inspect presets and create
+the agents required for a board or task.
+
+### Commanding Agent
+
+The board-level coordinator. Board chat PM mode runs as the selected commanding
+agent when one is configured. By default, this role is allowed to shape the board:
+create agents, create columns, create cards, assign agents, update docs, and
+queue runs.
+
+### Run
+
+One execution of one agent against one card. Runs move through:
+
+```text
+queued -> running -> completed | failed | cancelled
+```
+
+### Tool Call
+
+A durable record of a board tool execution. Tool calls capture caller, input,
+result, status, error, timing, run/message linkage, and board linkage.
+
+## Running Locally
+
+Prerequisites:
+
+- Node.js 22 or newer.
+- pnpm.
+
+Install and run:
+
+```bash
 pnpm install
 pnpm dev
 ```
 
-This starts the API server on `http://localhost:3000` and the Vite dev server on `http://localhost:5173`.
+Default URLs:
 
-### Docker
+- API: `http://localhost:3000`
+- Web UI: `http://localhost:5173`
 
-```bash
-docker compose up --build
-```
-
-The app is available at `http://localhost:3000` with the frontend served as static files. SQLite data persists in `./data/`.
-
-## Project Structure
-
-```
-agent-board/
-  agent-board.yaml              # Server configuration
-  drizzle.config.ts             # Drizzle ORM config
-  Dockerfile / docker-compose   # Container deployment
-
-  packages/
-    shared/                     # @agent-board/shared — types, Zod schemas
-    db/                         # @agent-board/db — Drizzle SQLite schema
-    server/                     # @agent-board/server — Fastify API + run queue
-    worker/                     # @agent-board/worker — local execution daemon
-
-  apps/
-    web/                        # @agent-board/web — React + Mantine UI
-```
-
-## Running the Worker
-
-The worker runs on any machine that has the project source code and the CLI tools installed (e.g., `claude`, `codex`, `aider`).
+Build and test:
 
 ```bash
-# Build the worker
-pnpm --filter @agent-board/worker build
-
-# Run it
-node packages/worker/dist/cli.js \
-  --server http://your-server:3000 \
-  --dir /path/to/your/project
-
-# Or during development
-pnpm --filter @agent-board/worker dev -- \
-  --server http://your-server:3000 \
-  --dir /path/to/your/project
+pnpm -r build
+pnpm -r test
 ```
 
-### Worker Options
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--server` | URL of the AWALL server | *required* |
-| `--dir` | Local project directory | *required* |
-| `--worker-id` | Unique worker identifier | `worker-<pid>` |
-| `--board-id` | Only process runs for this board | all boards |
-| `--poll-interval` | Milliseconds between polls | `5000` |
-
-### What happens when a run executes
-
-1. Worker polls `GET /api/runs/queued` and finds a queued run
-2. Worker calls `POST /api/runs/:id/claim` to atomically claim it
-3. Server returns the full run payload: agent config, persona, card context, subtasks, recent messages
-4. Worker builds a prompt with the agent's persona, card context, and board callback API instructions
-5. Worker spawns the CLI tool (e.g., `claude --print --model claude-sonnet-4-20250514 --max-turns 10`)
-6. Prompt is piped to stdin; stdout/stderr are streamed back to the server via `POST /api/runs/:id/events`
-7. On exit, worker reports the exit code via `POST /api/runs/:id/complete`
-
-## Agent Configuration
-
-Each agent has:
-
-- **Runner** — which CLI tool executes the work (`claude-code`, `codex`, `aider`, or a custom command)
-- **Persona** — a system prompt or large markdown document describing the agent's role and behavior (up to 100K chars)
-- **Model Config** — runner-specific settings passed as CLI flags:
-
-```json
-{
-  "model": "claude-sonnet-4-20250514",
-  "maxTurns": 10,
-  "allowedTools": ["Read", "Edit", "Write", "Bash", "Glob", "Grep"]
-}
-```
-
-For `claude-code`, this translates to:
-```
-claude --print --output-format text \
-  --model claude-sonnet-4-20250514 \
-  --max-turns 10 \
-  --allowedTools Read,Edit,Write,Bash,Glob,Grep
-```
-
-For `codex`:
-```
-codex --model <model> --approval-mode <approval>
-```
-
-For `aider`:
-```
-aider --yes --model <model>
-```
-
-### Preset Agents
-
-The UI includes preset agent templates (architect, frontend dev, backend dev, reviewer, etc.) with pre-written personas. Click a preset to create an agent with that configuration, or create a custom agent with your own persona document.
-
-## Git Worktree Support
-
-Boards can be configured with a **worktree mode** in Board Settings:
-
-- **none** — all runs execute in the base project directory
-- **auto** — each run gets its own git worktree branch, enabling concurrent agent tasks on the same repo without conflicts
-
-When worktree mode is `auto`, the worker creates a branch like `awall/<task-slug>-<card-id>` and a worktree directory alongside the repo. The worktree is cleaned up after the run completes. This lets multiple agents work on different cards simultaneously without stepping on each other.
-
-## Board Callback API
-
-Agents receive instructions in their prompt to call back to the server and report progress. These endpoints are available during a run:
+E2E tests:
 
 ```bash
-# Post a message to the card's discussion thread
-POST /api/messages
-{"boardId":"...","cardId":"...","authorType":"agent","authorId":"worker","content":"Refactoring complete."}
-
-# Complete a subtask
-POST /api/boards/:boardId/tools/update_subtask
-{"input":{"cardId":"...","subtaskId":"...","completed":true}}
-
-# Move card to another column (triggers next agent in pipeline)
-POST /api/boards/:boardId/tools/move_card
-{"input":{"cardId":"...","columnId":"..."}}
+pnpm e2e
 ```
 
 ## Configuration
 
-Configuration is loaded from `agent-board.yaml` in the project root.
+Configuration is read from `agent-board.yaml`.
 
 ```yaml
 server:
@@ -211,136 +209,313 @@ server:
 database:
   path: "./data/agent-board.db"
 
-# Optional: restrict API access to specific CIDRs
-allowedCidrs: []
+# Optional network allowlist. If omitted, all clients are allowed.
+# allowedCidrs:
+#   - "10.0.0.0/8"
+#   - "192.168.0.0/16"
 
-# Directories to scan for agent skills
 skillsDirs: []
 
-# Runner configurations (optional, for server-side execution)
 runners: {}
+# claude-code:
+#   type: "claude-code"
+#   command: "claude"
+# codex:
+#   type: "codex"
+#   command: "codex"
 ```
 
-## Concepts
+Security note: the local API is intentionally unauthenticated for LAN/local use.
+Use `allowedCidrs` when exposing it beyond localhost or a trusted internal
+network.
 
-| Concept | Description |
-|---------|-------------|
-| **Board** | A kanban board with columns, cards, a project directory, and worktree mode |
-| **Column** | A workflow stage. Can be assigned an agent to auto-trigger runs on card entry |
-| **Card** | A unit of work with subtasks, acceptance criteria, artifacts, and a discussion thread |
-| **Agent** | An AI configuration: name, role, persona, runner type, and model settings |
-| **Run** | An execution of an agent against a card. Streams stdout/stderr via SSE |
-| **Worker** | A local daemon that polls for runs and executes them on the machine with the code |
-| **Lease** | A lock on a card preventing concurrent agent claims |
-| **Skill** | A capability that can be attached to agents |
+## Running Workers
 
-### Run Lifecycle
+Build the worker package:
 
-`queued` → `running` → `completed` | `failed` | `cancelled`
+```bash
+pnpm --filter @agent-board/worker build
+```
 
-When a card moves to a column with an assigned agent, a run is automatically created in `queued` status. A worker claims it, moving it to `running`. When the CLI tool exits, it becomes `completed` or `failed`.
+Run a worker against a project directory:
 
-## Scripts
+```bash
+awall-worker --server http://localhost:3000 --dir /path/to/project
+```
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start API server + Vite dev server in parallel |
-| `pnpm build` | Build all packages |
-| `pnpm test` | Run all test suites |
-| `pnpm e2e` | Run Playwright end-to-end tests |
-| `pnpm db:generate` | Generate Drizzle migration |
-| `pnpm db:migrate` | Apply Drizzle migrations |
+Equivalent through the combined CLI:
 
-## API Reference
+```bash
+awall worker --server http://localhost:3000 --dir /path/to/project
+```
 
-All endpoints are prefixed with `/api`.
+Useful worker flags:
 
-### Boards & Columns
+| Flag | Meaning | Default |
+| --- | --- | --- |
+| `--server` | AWALL server URL | required |
+| `--dir` | Local project directory where the agent runs | required |
+| `--worker-id` | Stable worker identity | `worker-<pid>` |
+| `--board-id` | Only process runs for one board | all boards |
+| `--poll-interval` | Poll interval in milliseconds | `5000` |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/boards` | List all boards |
-| POST | `/api/boards` | Create board (with `projectDir`, `worktreeMode`) |
-| GET | `/api/boards/:id` | Get board |
-| PATCH | `/api/boards/:id` | Update board |
-| DELETE | `/api/boards/:id` | Delete board |
-| GET | `/api/boards/:boardId/columns` | List columns |
-| POST | `/api/boards/:boardId/columns` | Create column |
-| POST | `/api/boards/:boardId/columns/reorder` | Reorder columns |
-| PATCH | `/api/columns/:id` | Update column (name, agent, WIP limit) |
-| DELETE | `/api/columns/:id` | Delete column |
+## Agent CLI Contract
 
-### Cards & Subtasks
+External agents should prefer `awall` commands.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/boards/:boardId/cards` | List cards |
-| POST | `/api/boards/:boardId/cards` | Create card |
-| GET | `/api/cards/:id` | Get card |
-| GET | `/api/cards/:id/context` | Get card with full context |
-| PATCH | `/api/cards/:id` | Update card |
-| POST | `/api/cards/:id/move` | Move card to column (triggers agent) |
-| DELETE | `/api/cards/:id` | Delete card |
-| GET | `/api/cards/:cardId/subtasks` | List subtasks |
-| POST | `/api/cards/:cardId/subtasks` | Create subtask |
-| PATCH | `/api/subtasks/:id` | Update subtask |
-| DELETE | `/api/subtasks/:id` | Delete subtask |
+Get a versioned context envelope:
 
-### Agents
+```bash
+awall context --server http://localhost:3000 --run <run-id>
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/agents` | List agents |
-| POST | `/api/agents` | Create agent |
-| GET | `/api/agents/:id` | Get agent |
-| PATCH | `/api/agents/:id` | Update agent |
-| DELETE | `/api/agents/:id` | Delete agent |
+List tools available to an agent:
 
-### Runs (Worker API)
+```bash
+awall tools --server http://localhost:3000 --board <board-id> --agent <agent-id>
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/runs/queued` | Poll for queued runs (worker) |
-| POST | `/api/runs/:id/claim` | Claim a run atomically (worker) |
-| POST | `/api/runs/:id/events` | Stream event data back (worker) |
-| POST | `/api/runs/:id/complete` | Report run completion (worker) |
-| GET | `/api/runs/:id/stream` | SSE stream of run events (UI) |
-| POST | `/api/runs` | Manually enqueue a run |
-| POST | `/api/runs/:id/cancel` | Cancel a run |
+Call a tool:
 
-### Messages & Artifacts
+```bash
+awall call <tool-name> \
+  --server http://localhost:3000 \
+  --board <board-id> \
+  --agent <agent-id> \
+  --run <run-id> \
+  --input "{\"key\":\"value\"}"
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cards/:cardId/messages` | Card thread messages |
-| GET | `/api/boards/:boardId/messages` | Board thread messages |
-| POST | `/api/messages` | Post message (card or board thread) |
-| GET | `/api/cards/:cardId/artifacts` | List artifacts |
-| POST | `/api/artifacts` | Create artifact |
+Post a card message:
 
-### SSE Streams
+```bash
+awall message \
+  --server http://localhost:3000 \
+  --board <board-id> \
+  --card <card-id> \
+  --agent <agent-id> \
+  --run <run-id> \
+  --text "Implemented the API route and started tests."
+```
 
-| Endpoint | Description |
-|----------|-------------|
-| `/api/boards/:boardId/events` | Board-specific events |
-| `/api/boards/:boardId/feed` | Board activity feed |
-| `/api/cards/:cardId/events` | Card-specific events |
-| `/api/runs/:id/stream` | Run stdout/stderr stream |
+Send a run heartbeat:
+
+```bash
+awall heartbeat --server http://localhost:3000 --run <run-id> --worker-id <worker-id>
+```
+
+## Important Board Tools
+
+The canonical tool manifest lives in `packages/server/src/llm/tools.ts`.
+
+Common tools:
+
+- `get_board_context`
+- `list_columns`
+- `create_column`
+- `list_cards`
+- `create_card`
+- `update_card`
+- `move_card`
+- `create_subtask`
+- `complete_subtask`
+- `update_subtask`
+- `send_message`
+- `handoff_to_agent`
+- `list_agent_columns`
+- `read_project_doc`
+- `update_project_doc_section`
+- `list_agent_presets`
+- `inspect_agent_preset`
+- `recommend_agents_for_goal`
+- `create_agent_from_preset`
+- `assign_agent_to_column`
+- `create_run`
+
+Tool behavior rules:
+
+- Tool execution must go through `toolRegistry.execute`.
+- Tool permissions are enforced server-side.
+- Denied calls are logged.
+- `move_card` and `handoff_to_agent` trigger column-entry automation.
+- `create_run` queues the run through the server run queue.
+
+## Tool Permissions
+
+Agents can have `toolPermissions`.
+
+Example:
+
+```json
+{
+  "allowedTools": [
+    "list_cards",
+    "get_board_context",
+    "send_message",
+    "update_subtask",
+    "move_card"
+  ],
+  "deniedTools": ["create_agent_from_preset"]
+}
+```
+
+If `allowedTools` is absent or empty, all tools are allowed unless explicitly
+listed in `deniedTools`.
+
+## API Overview
+
+All API routes are prefixed with `/api`.
+
+Core routes:
+
+```text
+GET    /api/health
+
+GET    /api/boards
+POST   /api/boards
+GET    /api/boards/:id
+PATCH  /api/boards/:id
+
+GET    /api/boards/:boardId/columns
+POST   /api/boards/:boardId/columns
+PATCH  /api/columns/:id
+
+GET    /api/boards/:boardId/cards
+POST   /api/boards/:boardId/cards
+PATCH  /api/cards/:id
+POST   /api/cards/:id/move
+
+GET    /api/agents
+POST   /api/agents
+PATCH  /api/agents/:id
+
+GET    /api/agent-catalog
+GET    /api/agent-catalog/:id
+POST   /api/agent-catalog
+POST   /api/agent-catalog/:id/instantiate
+
+GET    /api/boards/:boardId/tools
+POST   /api/boards/:boardId/tools/:toolName
+
+POST   /api/boards/:boardId/orchestrate
+POST   /api/boards/:boardId/multi-chat
+
+POST   /api/runs
+GET    /api/runs/queued
+GET    /api/runs/:id
+GET    /api/runs/:id/context
+POST   /api/runs/:id/claim
+POST   /api/runs/:id/heartbeat
+POST   /api/runs/:id/events
+POST   /api/runs/:id/complete
+POST   /api/runs/:id/cancel
+```
+
+SSE routes:
+
+```text
+GET /api/boards/:boardId/events
+GET /api/boards/:boardId/feed
+GET /api/cards/:cardId/events
+GET /api/runs/:id/stream
+```
+
+## Database And Migrations
+
+Database package:
+
+```text
+packages/db
+```
+
+Schema files:
+
+```text
+packages/db/src/schema
+```
+
+Migrations:
+
+```text
+packages/db/src/migrations
+```
+
+Generate a migration after schema changes:
+
+```bash
+pnpm db:generate
+```
+
+Apply migrations:
+
+```bash
+pnpm db:migrate
+```
+
+The app uses SQLite with WAL mode. Runtime data defaults to `./data/`, which is
+ignored by git.
+
+## Development Workflow For Agents
+
+When changing this repo:
+
+1. Check worktree state:
+
+```bash
+git status --short
+```
+
+2. Read the relevant code path before editing.
+3. Keep edits scoped.
+4. Prefer existing patterns and service boundaries.
+5. Add or update focused tests when behavior changes.
+6. Run:
+
+```bash
+pnpm -r build
+pnpm -r test
+```
+
+7. Report what changed, what passed, and any remaining risk.
+
+Do not:
+
+- Reset or revert user changes without explicit instruction.
+- Edit generated runtime artifacts unless asked.
+- Bypass the tool registry for board tool behavior.
+- Add a second tool execution path for MCP or another interface.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| API | Fastify v5 |
-| Database | SQLite (WAL mode) via Drizzle ORM |
-| Frontend | React 19 + Mantine v7 + Vite |
-| State | React Query (server) + Zustand (UI) |
-| Drag & drop | @dnd-kit |
-| Real-time | Server-Sent Events (SSE) |
-| Testing | Vitest + React Testing Library + Playwright |
-| Worker | Node.js CLI daemon polling over HTTP |
+| Area | Technology |
+| --- | --- |
+| API | Fastify |
+| Database | SQLite + Drizzle ORM |
+| Frontend | React + Mantine + Vite |
+| Server state | React Query |
+| UI state | Zustand |
+| Realtime | Server-Sent Events |
+| Worker | Node.js CLI |
+| Tests | Vitest, React Testing Library, Playwright |
 | Package manager | pnpm workspaces |
 
-## License
+## Status Of The Architecture
 
-MIT
+Current strengths:
+
+- Tool calls now have a single registry path.
+- External agents can use CLI commands instead of memorizing raw HTTP.
+- Commanding agents are configurable per board.
+- Catalog presets are separate from live agent instances.
+- Tool calls are persisted for audit/debugging.
+
+Known follow-ups:
+
+- MCP should be added as a thin adapter over the tool registry.
+- Worker cancellation is exposed through heartbeat, but long-running spawned
+  processes still need stronger cooperative cancellation behavior.
+- Agent catalog can grow richer with health, cost, capabilities, and provider
+  metadata.
+- Approval gates for destructive repo actions and PR creation should remain
+  explicit.
+
