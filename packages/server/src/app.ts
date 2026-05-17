@@ -45,6 +45,7 @@ import settingsRoutes from "./routes/settings.js";
 import toolRoutes from "./routes/tools.js";
 import documentRoutes from "./routes/documents.js";
 import agentCatalogRoutes from "./routes/agent-catalog.js";
+import onboardingRoutes from "./routes/onboarding.js";
 import { orchestratorService } from "./services/orchestrator.js";
 import { settingsService } from "./services/settings.js";
 import { multiAgentChatService } from "./services/multi-agent-chat.js";
@@ -211,6 +212,7 @@ export async function buildApp(config: AppConfig) {
   await app.register(toolRoutes, { prefix: "/api" });
   await app.register(documentRoutes, { prefix: "/api" });
   await app.register(agentCatalogRoutes, { prefix: "/api" });
+  await app.register(onboardingRoutes);
 
   // Serve static frontend in production
   const webDistPath = resolve(

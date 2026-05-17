@@ -29,6 +29,9 @@ If you are an external task agent working on an AWALL run, prefer the `awall`
 CLI instead of raw HTTP:
 
 ```bash
+awall onboard --server http://localhost:3000
+awall onboard --server http://localhost:3000 --board <board-id>
+awall onboard --server http://localhost:3000 --card <card-id>
 awall context --server http://localhost:3000 --run <run-id>
 awall tools --server http://localhost:3000 --board <board-id> --agent <agent-id>
 awall message --server http://localhost:3000 --board <board-id> --card <card-id> --agent <agent-id> --run <run-id> --text "Progress update"
@@ -263,6 +266,15 @@ Useful worker flags:
 
 External agents should prefer `awall` commands.
 
+Discover how to work with the server without knowing the repo URL:
+
+```bash
+awall onboard --server http://localhost:3000
+awall onboard --server http://localhost:3000 --board <board-id>
+awall onboard --server http://localhost:3000 --card <card-id>
+awall onboard --server http://localhost:3000 --run <run-id> --format json
+```
+
 Get a versioned context envelope:
 
 ```bash
@@ -364,12 +376,15 @@ listed in `deniedTools`.
 
 ## API Overview
 
-All API routes are prefixed with `/api`.
+Most API routes are prefixed with `/api`. Agent discovery also exposes a
+standard `.well-known` document at the server root.
 
 Core routes:
 
 ```text
 GET    /api/health
+GET    /.well-known/awall-agent.json
+GET    /api/agent/onboarding
 
 GET    /api/boards
 POST   /api/boards
@@ -518,4 +533,3 @@ Known follow-ups:
   metadata.
 - Approval gates for destructive repo actions and PR creation should remain
   explicit.
-

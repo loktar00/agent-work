@@ -17,6 +17,19 @@ export class ServerAPI {
     return res.json() as Promise<T>;
   }
 
+  private async requestText(path: string, opts?: RequestInit): Promise<string> {
+    const url = `${this.baseUrl}${path}`;
+    const headers: Record<string, string> = { ...opts?.headers as Record<string, string> };
+    if (opts?.body != null) headers["Content-Type"] = "application/json";
+
+    const res = await fetch(url, { ...opts, headers });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    }
+    return res.text();
+  }
+
   /** Poll for queued runs */
   async getQueuedRuns(boardId?: string): Promise<QueuedRun[]> {
     const qs = boardId ? `?boardId=${boardId}` : "";
@@ -63,6 +76,26 @@ export class ServerAPI {
   /** Fetch a versioned context envelope for a run */
   async getRunContext(runId: string): Promise<unknown> {
     return this.request(`/api/runs/${runId}/context`);
+  }
+
+  /** Fetch the agent onboarding packet. Markdown is the default agent-facing form. */
+  async getOnboarding(opts: {
+    boardId?: string;
+    cardId?: string;
+    runId?: string;
+    agentId?: string;
+    format?: "markdown" | "json";
+  }): Promise<unknown | string> {
+    const params = new URLSearchParams();
+    if (opts.boardId) params.set("boardId", opts.boardId);
+    if (opts.cardId) params.set("cardId", opts.cardId);
+    if (opts.runId) params.set("runId", opts.runId);
+    if (opts.agentId) params.set("agentId", opts.agentId);
+    if (opts.format) params.set("format", opts.format);
+
+    const path = `/api/agent/onboarding${params.size > 0 ? `?${params}` : ""}`;
+    if (opts.format === "json") return this.request(path);
+    return this.requestText(path);
   }
 
   /** Fetch allowed tools for a board, optionally scoped to an agent */

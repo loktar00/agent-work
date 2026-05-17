@@ -40,6 +40,7 @@ import runRoutes from "../src/routes/runs.js";
 import eventRoutes from "../src/routes/events.js";
 import toolRoutes from "../src/routes/tools.js";
 import agentCatalogRoutes from "../src/routes/agent-catalog.js";
+import onboardingRoutes from "../src/routes/onboarding.js";
 import errorHandler from "../src/plugins/error-handler.js";
 import ssePlugin from "../src/plugins/sse.js";
 import type { DB } from "@agent-board/db";
@@ -363,6 +364,7 @@ export async function createTestApp() {
   await app.register(eventRoutes, { prefix: "/api" });
   await app.register(toolRoutes, { prefix: "/api" });
   await app.register(agentCatalogRoutes, { prefix: "/api" });
+  await app.register(onboardingRoutes);
 
   // Cleanup on close
   app.addHook("onClose", async () => {

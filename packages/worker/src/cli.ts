@@ -130,6 +130,26 @@ async function runCommand(command: string, args: string[]) {
   const api = new ServerAPI(server, workerId);
 
   switch (command) {
+    case "onboard": {
+      const format = opts.json === "true" ? "json" : opts.format ?? "markdown";
+      if (format !== "markdown" && format !== "json") {
+        throw new Error("--format must be markdown or json");
+      }
+      const packet = await api.getOnboarding({
+        boardId: opts.board,
+        cardId: opts.card,
+        runId: opts.run,
+        agentId: opts.agent,
+        format,
+      });
+      if (typeof packet === "string") {
+        console.log(packet);
+      } else {
+        printJson(packet);
+      }
+      return;
+    }
+
     case "context": {
       const runId = required(opts, "run");
       printJson(await api.getRunContext(runId));
